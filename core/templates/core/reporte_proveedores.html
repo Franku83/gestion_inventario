@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}Reporte proveedores{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Ranking: vendidos por proveedor</h2>
+    <p class="muted">Suma total de cantidades vendidas (salidas).</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Unidades vendidas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in data %}
+          <tr>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.vendidos }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" class="muted">No hay datos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

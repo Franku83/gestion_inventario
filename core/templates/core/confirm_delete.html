@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="mb-3">{{ title }}</h5>
+    <p>¿Seguro que deseas eliminar: <strong>{{ obj }}</strong>?</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Sí, eliminar</button>
+      <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Cancelar</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

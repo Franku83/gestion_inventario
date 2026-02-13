@@ -1,0 +1,122 @@
+{% extends "core/base.html" %}
+{% block title %}Registrar compra{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">Registrar compra</h5>
+
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="form-check mb-3">
+            {{ form.crear_producto }}
+            <label class="form-check-label" for="{{ form.crear_producto.id_for_label }}">
+              {{ form.crear_producto.label }}
+            </label>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">{{ form.producto_existente.label }}</label>
+            {{ form.producto_existente }}
+            {% if form.producto_existente.errors %}
+              <div class="text-danger small">{{ form.producto_existente.errors|striptags }}</div>
+            {% endif %}
+            <div class="form-text">Si marcas “Nuevo producto”, esto no hace falta.</div>
+          </div>
+
+          <hr class="my-4">
+
+          <div id="nuevo-producto" class="p-3 rounded bg-light border">
+            <h6 class="mb-3">Nuevo producto (solo si marcaste “Nuevo producto”)</h6>
+
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label">Nombre</label>
+                {{ form.nombre }}
+                <div class="text-danger small">{{ form.nombre.errors|striptags }}</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Proveedor</label>
+                {{ form.proveedor }}
+                <div class="text-danger small">{{ form.proveedor.errors|striptags }}</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tipo</label>
+                {{ form.tipo }}
+                <div class="text-danger small">{{ form.tipo.errors|striptags }}</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Costo</label>
+                {{ form.costo_unitario }}
+                <div class="text-danger small">{{ form.costo_unitario.errors|striptags }}</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Precio venta</label>
+                {{ form.precio_venta_unitario }}
+                <div class="text-danger small">{{ form.precio_venta_unitario.errors|striptags }}</div>
+              </div>
+              <div class="col-md-12">
+                <div class="form-check mt-2">
+                  {{ form.activo }}
+                  <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activo</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <h6 class="mb-3">Datos de la compra</h6>
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label">Cantidad</label>
+              {{ form.cantidad }}
+              <div class="text-danger small">{{ form.cantidad.errors|striptags }}</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Precio unitario (compra)</label>
+              {{ form.precio_unitario }}
+              <div class="text-danger small">{{ form.precio_unitario.errors|striptags }}</div>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label">Nota</label>
+              {{ form.nota }}
+              <div class="text-danger small">{{ form.nota.errors|striptags }}</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-primary" type="submit">Guardar compra</button>
+            <a class="btn btn-outline-secondary" href="{% url 'inventario' %}">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h6>Tip</h6>
+        <p class="text-muted mb-0">
+          Si el producto no existe, marca <strong>Nuevo producto</strong> y lo creas aquí mismo sin salir.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // UX: ocultar/mostrar bloque nuevo producto
+  const chk = document.getElementById("{{ form.crear_producto.id_for_label }}");
+  const box = document.getElementById("nuevo-producto");
+  function toggleBox() {
+    box.style.display = chk.checked ? "block" : "none";
+  }
+  toggleBox();
+  chk.addEventListener("change", toggleBox);
+</script>
+{% endblock %}

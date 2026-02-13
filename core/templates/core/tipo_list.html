@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block title %}Tipos{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Tipos de joya</h5>
+      <a class="btn btn-primary btn-sm" href="{% url 'tipo_create' %}">Nuevo</a>
+    </div>
+
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-md-10">
+        <input class="form-control" name="q" value="{{ q }}" placeholder="Buscar tipo...">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-primary w-100" type="submit">Buscar</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead><tr><th>Nombre</th><th></th></tr></thead>
+        <tbody>
+          {% for t in tipos %}
+          <tr>
+            <td class="fw-semibold">{{ t.nombre }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'tipo_update' t.id %}">Editar</a>
+              <a class="btn btn-outline-danger btn-sm" href="{% url 'tipo_delete' t.id %}">Eliminar</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="2" class="text-muted">No hay tipos.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

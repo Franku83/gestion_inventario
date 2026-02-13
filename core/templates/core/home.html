@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Inventario - Resumen</h2>
+    <p class="muted">Atajos: crea productos, registra compras y ventas.</p>
+
+    <div class="row">
+      <a class="btn" href="{% url 'producto_create' %}">+ Nuevo producto</a>
+      <a class="btn" href="{% url 'proveedor_create' %}">+ Nuevo proveedor</a>
+      <a class="btn" href="{% url 'tipo_create' %}">+ Nuevo tipo</a>
+    </div>
+  </div>
+
+  <br>
+
+  <div class="card">
+    <h3>Últimos productos</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Proveedor</th>
+          <th>Tipo</th>
+          <th>Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+          <tr>
+            <td>{{ p.nombre }}</td>
+            <td>{{ p.proveedor.nombre }}</td>
+            <td>{{ p.tipo.nombre }}</td>
+            <td>{{ p.stock }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">No hay productos aún.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
