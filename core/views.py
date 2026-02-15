@@ -11,6 +11,7 @@ from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
+from core.services import obtener_usd_bs_rate
 
 from .forms import (
     ProveedorForm,
@@ -28,6 +29,9 @@ from .forms import (
 # =========================
 
 from django.db.models import Count
+
+from decimal import Decimal
+from core.services import obtener_usd_bs_rate  # asegúrate que existe
 
 def dashboard(request):
     # Dashboard "seguro": no asume campos como stock/costo.
@@ -47,11 +51,32 @@ def dashboard(request):
     except Exception:
         total_proveedores = 0
 
+    # Valores base (USD) - por ahora siguen en 0 como antes
+    dinero_stock = Decimal("0.00")
+    dinero_vendido = Decimal("0.00")
+    dinero_deuda = Decimal("0.00")
+
+    # Tasa USD -> Bs (si falla, devuelve 0.00 y Bs queda 0)
+    tasa = obtener_usd_bs_rate()  # Decimal
+
     context = {
         "productos": productos,
-        "dinero_stock": 0,
-        "dinero_vendido": 0,
-        "dinero_deuda": 0,
+
+        # (compatibilidad) por si en algún template viejo aún los usas
+        "dinero_stock": dinero_stock,
+        "dinero_vendido": dinero_vendido,
+        "dinero_deuda": dinero_deuda,
+
+        # NUEVO: USD + Bs para el dashboard.html actualizado
+        "dinero_stock_usd": dinero_stock,
+        "dinero_stock_bs": dinero_stock * tasa,
+
+        "dinero_vendido_usd": dinero_vendido,
+        "dinero_vendido_bs": dinero_vendido * tasa,
+
+        "dinero_deuda_usd": dinero_deuda,
+        "dinero_deuda_bs": dinero_deuda * tasa,
+
         "total_productos": total_productos,
         "total_proveedores": total_proveedores,
     }
