@@ -26,6 +26,7 @@
 
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        {% if user.is_authenticated %}
 
         <li class="nav-item">
           <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
@@ -42,7 +43,18 @@
             <li><a class="dropdown-item" href="{% url 'compra_list' %}">Ver compras</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{% url 'tipo_list' %}">Tipos</a></li>
-          </ul>
+                  {% endif %}
+      </ul>
+      {% if user.is_authenticated %}
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-light small">Hola, {{ user.username }}</span>
+        <form method="post" action="{% url 'logout' %}" class="m-0">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-light" type="submit">Salir</button>
+        </form>
+      </div>
+      {% endif %}
+
         </li>
 
         <li class="nav-item dropdown">

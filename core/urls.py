@@ -10,7 +10,6 @@ urlpatterns = [
     path("compra/registrar/", views.compra_create, name="compra_create"),
     path("compra/<int:pk>/editar/", views.compra_update, name="compra_update"),
     path("compra/<int:pk>/eliminar/", views.compra_delete, name="compra_delete"),
-    path("compra/<int:pk>/anular/", views.compra_anular, name="compra_anular"),
 
     # proveedores
     path("proveedores/", views.proveedor_list, name="proveedor_list"),
@@ -23,12 +22,6 @@ urlpatterns = [
     path("tipos/crear/", views.tipo_create, name="tipo_create"),
     path("tipos/<int:pk>/editar/", views.tipo_update, name="tipo_update"),
     path("tipos/<int:pk>/eliminar/", views.tipo_delete, name="tipo_delete"),
-
-    # productos ✅ (ESTO ES LO QUE FALTABA)
-    path("productos/", views.producto_list, name="producto_list"),
-    path("productos/crear/", views.producto_create, name="producto_create"),
-    path("productos/<int:pk>/editar/", views.producto_update, name="producto_update"),
-    path("productos/<int:pk>/eliminar/", views.producto_delete, name="producto_delete"),
 
     # ventas / deudas / pagos
     path("venta/registrar/", views.venta_create, name="venta_create"),

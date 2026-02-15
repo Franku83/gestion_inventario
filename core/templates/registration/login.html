@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+
+{% block title %}Iniciar sesión{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 420px; margin-top: 70px;">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h4 class="mb-3 text-center">Iniciar sesión</h4>
+
+      {% if form.errors %}
+        <div class="alert alert-danger">
+          Usuario o contraseña incorrectos.
+        </div>
+      {% endif %}
+
+      {% if next and user.is_authenticated %}
+        <div class="alert alert-warning">
+          Tu usuario no tiene permisos para ver esa página.
+        </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label" for="id_username">Usuario</label>
+          <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username"
+                 maxlength="150" required id="id_username" class="form-control"
+                 value="{{ form.username.value|default_if_none:'' }}">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="id_password">Contraseña</label>
+          <input type="password" name="password" autocomplete="current-password" required id="id_password"
+                 class="form-control">
+        </div>
+
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <button type="submit" class="btn btn-primary w-100">Entrar</button>
+      </form>
+
+      <div class="text-muted small mt-3">
+        Tip: crea el primer usuario con <code>python manage.py createsuperuser</code>.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
