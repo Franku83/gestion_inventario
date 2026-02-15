@@ -18,7 +18,6 @@ from .forms import (
 
 
 from core.forms import CompraUnificadaForm
-from .forms import CompraEditForm
 
 # ---------------------------
 # Helpers: stock y listados
@@ -351,47 +350,3 @@ def producto_delete(request, pk):
         messages.success(request, "Producto eliminado.")
         return redirect("producto_list")
     return render(request, "core/confirm_delete.html", {"obj": obj, "title": "Eliminar producto"})
-
-
-
-
-def compra_list(request):
-    q = request.GET.get("q", "").strip()
-    compras = (
-        Movimiento.objects
-        .filter(tipo="IN")
-        .select_related("producto", "producto__proveedor", "producto__tipo")
-        .order_by("-fecha")
-    )
-
-    if q:
-        compras = compras.filter(producto__nombre__icontains=q)
-
-    return render(request, "core/compra_list.html", {"compras": compras, "q": q})
-
-
-def compra_update(request, pk):
-    compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
-
-    if request.method == "POST":
-        form = CompraEditForm(request.POST, instance=compra)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Compra actualizada.")
-            return redirect("compra_list")
-    else:
-        form = CompraEditForm(instance=compra)
-
-    return render(request, "core/form.html", {"form": form, "title": "Editar compra"})
-
-
-def compra_delete(request, pk):
-    compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
-
-    if request.method == "POST":
-        compra.delete()
-        messages.success(request, "Compra eliminada.")
-        return redirect("compra_list")
-
-    return render(request, "core/confirm_delete.html", {"obj": compra, "title": "Eliminar compra"})
-
