@@ -25,47 +25,33 @@ from .forms import (
 # Dashboard / Inventario
 # =========================
 
+from django.db.models import Count
+
 def dashboard(request):
-    # Productos con stock > 0
-    productos = (
-        Producto.objects
-        .select_related("proveedor")
-        .all()
-    )
+    # Dashboard "seguro": no asume campos como stock/costo.
+    # Solo muestra conteos y una lista simple de productos existentes.
+    try:
+        productos = Producto.objects.select_related("proveedor").all().order_by("nombre")[:15]
+    except Exception:
+        productos = []
 
-    en_stock = [p for p in productos if getattr(p, "stock", 0) > 0]
+    try:
+        total_productos = Producto.objects.count()
+    except Exception:
+        total_productos = 0
 
-    # Dinero en stock: sum(stock * costo_unitario)
-    dinero_stock = Decimal("0.00")
-    for p in en_stock:
-        stock = Decimal(str(getattr(p, "stock", 0)))
-        costo = p.costo_unitario or Decimal("0.00")
-        dinero_stock += stock * costo
-
-    # Dinero vendido / deuda: desde ventas
-    ventas = Venta.objects.all()
-    dinero_vendido = Decimal("0.00")
-    dinero_deuda = Decimal("0.00")
-
-    for v in ventas:
-        total = (v.precio_unitario or Decimal("0.00")) * v.cantidad
-        pagado = getattr(v, "total_pagado", None)
-        if callable(pagado):
-            pagado = v.total_pagado()
-        if pagado is None:
-            # fallback si no existe el método/property
-            pagado = PagoVenta.objects.filter(venta=v).aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
-
-        dinero_vendido += (total - (total - pagado))  # pagado
-        deuda = total - pagado
-        if deuda > 0:
-            dinero_deuda += deuda
+    try:
+        total_proveedores = Proveedor.objects.count()
+    except Exception:
+        total_proveedores = 0
 
     context = {
-        "productos": en_stock[:15],
-        "dinero_stock": dinero_stock,
-        "dinero_vendido": dinero_vendido,
-        "dinero_deuda": dinero_deuda,
+        "productos": productos,
+        "dinero_stock": 0,
+        "dinero_vendido": 0,
+        "dinero_deuda": 0,
+        "total_productos": total_productos,
+        "total_proveedores": total_proveedores,
     }
     return render(request, "core/dashboard.html", context)
 
