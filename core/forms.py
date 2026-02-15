@@ -49,7 +49,7 @@ class ProductoForm(forms.ModelForm):
         _bootstrapify(self)
 
 
-class CompraForm(forms.ModelForm):
+class CompraEditForm(forms.ModelForm):
     class Meta:
         model = Movimiento
         fields = ["producto", "cantidad", "precio_unitario", "nota"]
@@ -65,6 +65,7 @@ class CompraForm(forms.ModelForm):
         if p < 0:
             raise ValidationError("El precio no puede ser negativo.")
         return p
+
 
 
 class VentaForm(forms.ModelForm):

@@ -77,3 +77,8 @@ class PagoVenta(models.Model):
 
     def __str__(self):
         return f"Pago {self.monto} - {self.venta}"
+
+
+@property
+def total(self):
+    return (self.precio_unitario or Decimal("0.00")) * self.cantidad

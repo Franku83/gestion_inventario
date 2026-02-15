@@ -1,0 +1,58 @@
+{% extends "core/base.html" %}
+{% block title %}Compras{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h5 class="mb-0">Compras</h5>
+      <a class="btn btn-primary btn-sm" href="{% url 'compra_create' %}">Registrar compra</a>
+    </div>
+
+    <form method="get" class="row g-2 align-items-end mb-3">
+      <div class="col-md-10">
+        <label class="form-label">Buscar por producto</label>
+        <input class="form-control" name="q" value="{{ q }}" placeholder="Ej: cadena...">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-outline-primary w-100" type="submit">Buscar</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Producto</th>
+            <th>Proveedor</th>
+            <th class="text-end">Cantidad</th>
+            <th class="text-end">Precio unit.</th>
+            <td class="text-end">{{ c.total }}</td>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in compras %}
+          <tr>
+            <td>{{ c.fecha|date:"Y-m-d H:i" }}</td>
+            <td class="fw-semibold">{{ c.producto.nombre }}</td>
+            <td>{{ c.producto.proveedor.nombre }}</td>
+            <td class="text-end">{{ c.cantidad }}</td>
+            <td class="text-end">{{ c.precio_unitario }}</td>
+            <td class="text-end">{{ c.precio_unitario|floatformat:2|add:""|safe }}</td>
+            <td class="text-end">
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'compra_update' c.id %}">Editar</a>
+              <a class="btn btn-outline-danger btn-sm" href="{% url 'compra_delete' c.id %}">Eliminar</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-muted">No hay compras registradas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
