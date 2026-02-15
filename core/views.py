@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Coalesce
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models.deletion import ProtectedError
@@ -34,8 +34,16 @@ from decimal import Decimal
 from core.services import obtener_usd_bs_rate  # asegúrate que existe
 
 def dashboard(request):
-    # Dashboard "seguro": no asume campos como stock/costo.
-    # Solo muestra conteos y una lista simple de productos existentes.
+    # ---------- Tasa USD -> Bs ----------
+    try:
+        tasa = obtener_usd_bs_rate()  # Decimal
+        if tasa is None:
+            tasa = Decimal("0.00")
+        tasa = Decimal(str(tasa))
+    except Exception:
+        tasa = Decimal("0.00")
+
+    # ---------- Productos recientes / conteos ----------
     try:
         productos = Producto.objects.select_related("proveedor").all().order_by("nombre")[:15]
     except Exception:
@@ -51,37 +59,115 @@ def dashboard(request):
     except Exception:
         total_proveedores = 0
 
-    # Valores base (USD) - por ahora siguen en 0 como antes
-    dinero_stock = Decimal("0.00")
-    dinero_vendido = Decimal("0.00")
-    dinero_deuda = Decimal("0.00")
+    # ---------- Mapas: compras (IN, no anuladas) y ventas por producto ----------
+    try:
+        compras_map = {
+            r["producto_id"]: int(r["total_in"] or 0)
+            for r in (
+                Movimiento.objects
+                .filter(tipo="IN", anulada=False)   # tus campos existen :contentReference[oaicite:5]{index=5}
+                .values("producto_id")
+                .annotate(total_in=Coalesce(Sum("cantidad"), 0))
+            )
+        }
+    except Exception:
+        compras_map = {}
 
-    # Tasa USD -> Bs (si falla, devuelve 0.00 y Bs queda 0)
-    tasa = obtener_usd_bs_rate()  # Decimal
+    try:
+        ventas_map = {
+            r["producto_id"]: int(r["total_out"] or 0)
+            for r in (
+                Venta.objects
+                .values("producto_id")
+                .annotate(total_out=Coalesce(Sum("cantidad"), 0))
+            )
+        }
+    except Exception:
+        ventas_map = {}
+
+    # ---------- Dinero en stock (USD) = stock_qty * costo_unitario ----------
+    dinero_stock_usd = Decimal("0.00")
+    try:
+        for p in Producto.objects.only("id", "costo_unitario"):
+            total_in = compras_map.get(p.id, 0)
+            total_out = ventas_map.get(p.id, 0)
+            stock_qty = total_in - total_out
+            if stock_qty < 0:
+                stock_qty = 0
+
+            costo = Decimal(str(p.costo_unitario or 0))
+            dinero_stock_usd += (costo * Decimal(stock_qty))
+    except Exception:
+        dinero_stock_usd = Decimal("0.00")
+
+    # ---------- Dinero vendido (USD) = sum(venta.cantidad * venta.precio_unitario) ----------
+    dinero_vendido_usd = Decimal("0.00")
+    try:
+        dinero_vendido_usd = Decimal("0.00")
+        # Evitamos ExpressionWrapper para que sea 100% compatible con SQLite/Postgres sin líos.
+        for v in Venta.objects.only("cantidad", "precio_unitario"):
+            dinero_vendido_usd += (Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0)))
+    except Exception:
+        dinero_vendido_usd = Decimal("0.00")
+
+    # ---------- Dinero deuda (USD) = sum(venta.total - pagos) SOLO a_plazos=True ----------
+    dinero_deuda_usd = Decimal("0.00")
+    try:
+        # pagos por venta en un solo query
+        pagos_map = {
+            r["venta_id"]: Decimal(str(r["pagado"] or "0.00"))
+            for r in (
+                PagoVenta.objects
+                .values("venta_id")
+                .annotate(pagado=Coalesce(Sum("monto"), Decimal("0.00")))
+            )
+        }
+
+        for v in Venta.objects.filter(a_plazos=True).only("id", "cantidad", "precio_unitario"):
+            total = Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0))
+            pagado = pagos_map.get(v.id, Decimal("0.00"))
+            deuda = total - pagado
+            if deuda > 0:
+                dinero_deuda_usd += deuda
+    except Exception:
+        dinero_deuda_usd = Decimal("0.00")
+
+    # ---------- Conversiones a Bs ----------
+    dinero_stock_bs = (dinero_stock_usd * tasa)
+    dinero_vendido_bs = (dinero_vendido_usd * tasa)
+    dinero_deuda_bs = (dinero_deuda_usd * tasa)
+
+    # redondeo bonito
+    q = Decimal("0.01")
+    dinero_stock_usd = dinero_stock_usd.quantize(q)
+    dinero_vendido_usd = dinero_vendido_usd.quantize(q)
+    dinero_deuda_usd = dinero_deuda_usd.quantize(q)
+
+    dinero_stock_bs = dinero_stock_bs.quantize(q)
+    dinero_vendido_bs = dinero_vendido_bs.quantize(q)
+    dinero_deuda_bs = dinero_deuda_bs.quantize(q)
 
     context = {
         "productos": productos,
-
-        # (compatibilidad) por si en algún template viejo aún los usas
-        "dinero_stock": dinero_stock,
-        "dinero_vendido": dinero_vendido,
-        "dinero_deuda": dinero_deuda,
-
-        # NUEVO: USD + Bs para el dashboard.html actualizado
-        "dinero_stock_usd": dinero_stock,
-        "dinero_stock_bs": dinero_stock * tasa,
-
-        "dinero_vendido_usd": dinero_vendido,
-        "dinero_vendido_bs": dinero_vendido * tasa,
-
-        "dinero_deuda_usd": dinero_deuda,
-        "dinero_deuda_bs": dinero_deuda * tasa,
-
         "total_productos": total_productos,
         "total_proveedores": total_proveedores,
-    }
-    return render(request, "core/dashboard.html", context)
 
+        # NUEVO (USD + Bs)
+        "dinero_stock_usd": dinero_stock_usd,
+        "dinero_stock_bs": dinero_stock_bs,
+        "dinero_vendido_usd": dinero_vendido_usd,
+        "dinero_vendido_bs": dinero_vendido_bs,
+        "dinero_deuda_usd": dinero_deuda_usd,
+        "dinero_deuda_bs": dinero_deuda_bs,
+        "tasa_usd_bs": tasa,
+
+        # COMPATIBILIDAD con tu dashboard.html actual (usa dinero_stock, dinero_vendido, dinero_deuda) :contentReference[oaicite:6]{index=6}
+        "dinero_stock": f"${dinero_stock_usd} USD / Bs {dinero_stock_bs}",
+        "dinero_vendido": f"${dinero_vendido_usd} USD / Bs {dinero_vendido_bs}",
+        "dinero_deuda": f"${dinero_deuda_usd} USD / Bs {dinero_deuda_bs}",
+    }
+
+    return render(request, "core/dashboard.html", context)
 
 def inventario(request):
     q = (request.GET.get("q") or "").strip()
