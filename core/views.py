@@ -1,9 +1,9 @@
 from decimal import Decimal
 
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.db.models import Sum, Case, When, IntegerField, Value, F, DecimalField, ExpressionWrapper
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, F
+from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
@@ -11,207 +11,101 @@ from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
 
 from .forms import (
-    ProveedorForm, TipoJoyaForm, ProductoForm,
-    CompraForm, VentaForm, PagoVentaForm,
-    CompraUnificadaForm
+    ProveedorForm,
+    TipoJoyaForm,
+    ProductoForm,
+    CompraUnificadaForm,
+    CompraEditForm,
+    VentaForm,
+    PagoVentaForm,
 )
 
 
-from core.forms import CompraUnificadaForm
+# =========================
+# Dashboard / Inventario
+# =========================
 
-# ---------------------------
-# Helpers: stock y listados
-# ---------------------------
-def productos_con_stock_qs():
-    # Entradas (compras)
-    entradas = Coalesce(
-        Sum(
-            Case(
-                When(movimientos__tipo="IN", then=F("movimientos__cantidad")),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-        ),
-        0,
-    )
-
-    # Salidas: ventas
-    salidas = Coalesce(Sum("ventas__cantidad"), 0)
-
-    return Producto.objects.select_related("proveedor", "tipo").annotate(
-        entradas=entradas,
-        salidas=salidas
-    ).annotate(
-        stock=F("entradas") - F("salidas")
-    )
-
-
-# ---------------------------
-# Dashboard
-# ---------------------------
 def dashboard(request):
-    productos = productos_con_stock_qs().filter(stock__gt=0, activo=True).order_by("nombre")
+    # Productos con stock > 0
+    productos = (
+        Producto.objects
+        .select_related("proveedor")
+        .all()
+    )
 
-    dinero_stock = productos.aggregate(
-        total=Coalesce(
-            Sum(
-                ExpressionWrapper(
-                    F("stock") * F("costo_unitario"),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            ),
-            Decimal("0.00")
-        )
-    )["total"]
+    en_stock = [p for p in productos if getattr(p, "stock", 0) > 0]
 
-    dinero_vendido = Venta.objects.aggregate(
-        total=Coalesce(
-            Sum(
-                ExpressionWrapper(
-                    F("cantidad") * F("precio_unitario"),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            ),
-            Decimal("0.00")
-        )
-    )["total"]
+    # Dinero en stock: sum(stock * costo_unitario)
+    dinero_stock = Decimal("0.00")
+    for p in en_stock:
+        stock = Decimal(str(getattr(p, "stock", 0)))
+        costo = p.costo_unitario or Decimal("0.00")
+        dinero_stock += stock * costo
 
-    pagos_total = PagoVenta.objects.aggregate(
-        total=Coalesce(Sum("monto"), Decimal("0.00"))
-    )["total"]
+    # Dinero vendido / deuda: desde ventas
+    ventas = Venta.objects.all()
+    dinero_vendido = Decimal("0.00")
+    dinero_deuda = Decimal("0.00")
 
-    # deuda total = total vendido - pagado (solo ventas a plazos cuentan deuda)
-    total_plazos = Venta.objects.filter(a_plazos=True).aggregate(
-        total=Coalesce(
-            Sum(
-                ExpressionWrapper(
-                    F("cantidad") * F("precio_unitario"),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            ),
-            Decimal("0.00")
-        )
-    )["total"]
+    for v in ventas:
+        total = (v.precio_unitario or Decimal("0.00")) * v.cantidad
+        pagado = getattr(v, "total_pagado", None)
+        if callable(pagado):
+            pagado = v.total_pagado()
+        if pagado is None:
+            # fallback si no existe el método/property
+            pagado = PagoVenta.objects.filter(venta=v).aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
 
-    # pagos que corresponden a ventas a plazos
-    pagos_plazos = PagoVenta.objects.filter(venta__a_plazos=True).aggregate(
-        total=Coalesce(Sum("monto"), Decimal("0.00"))
-    )["total"]
+        dinero_vendido += (total - (total - pagado))  # pagado
+        deuda = total - pagado
+        if deuda > 0:
+            dinero_deuda += deuda
 
-    deuda_total = total_plazos - pagos_plazos
-    if deuda_total < 0:
-        deuda_total = Decimal("0.00")
-
-    return render(request, "core/dashboard.html", {
-        "productos": productos,
+    context = {
+        "productos": en_stock[:15],
         "dinero_stock": dinero_stock,
         "dinero_vendido": dinero_vendido,
-        "dinero_deuda": deuda_total,
-    })
+        "dinero_deuda": dinero_deuda,
+    }
+    return render(request, "core/dashboard.html", context)
 
 
-# ---------------------------
-# Inventario tipo farmacia
-# ---------------------------
 def inventario(request):
-    q = request.GET.get("q", "").strip()
-    qs = productos_con_stock_qs().filter(stock__gt=0, activo=True)
+    q = (request.GET.get("q") or "").strip()
+    proveedor_id = (request.GET.get("proveedor") or "").strip()
+    tipo_id = (request.GET.get("tipo") or "").strip()
+    solo_stock = request.GET.get("solo_stock") == "on"
+
+    productos = Producto.objects.select_related("proveedor", "tipo").all().order_by("nombre")
 
     if q:
-        qs = qs.filter(nombre__icontains=q)
+        productos = productos.filter(nombre__icontains=q)
+    if proveedor_id:
+        productos = productos.filter(proveedor_id=proveedor_id)
+    if tipo_id:
+        productos = productos.filter(tipo_id=tipo_id)
 
-    qs = qs.order_by("nombre")[:120]
-    return render(request, "core/inventario.html", {"productos": qs, "q": q})
+    # filtrar por stock en python si stock es @property
+    productos_list = list(productos)
+    if solo_stock:
+        productos_list = [p for p in productos_list if getattr(p, "stock", 0) > 0]
 
-
-# ---------------------------
-# Compra (Entrada)
-# ---------------------------
-def compra_create(request):
-    if request.method == "POST":
-        form = CompraUnificadaForm(request.POST)
-        if form.is_valid():
-            _, _ = form.save()
-            messages.success(request, "Compra registrada.")
-            return redirect("inventario")
-    else:
-        form = CompraUnificadaForm()
-
-    return render(request, "core/compra_unificada.html", {"form": form})
+    context = {
+        "productos": productos_list,
+        "proveedores": Proveedor.objects.all().order_by("nombre"),
+        "tipos": TipoJoya.objects.all().order_by("nombre"),
+        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id, "solo_stock": solo_stock},
+    }
+    return render(request, "core/inventario.html", context)
 
 
-# ---------------------------
-# Venta (con pago inicial)
-# ---------------------------
-def venta_create(request):
-    if request.method == "POST":
-        form = VentaForm(request.POST)
-        if form.is_valid():
-            venta = form.save(commit=False)
+# =========================
+# Proveedores CRUD
+# =========================
 
-            # validar stock disponible
-            stock_actual = productos_con_stock_qs().filter(id=venta.producto_id).values_list("stock", flat=True).first() or 0
-            if venta.cantidad > stock_actual:
-                messages.error(request, f"No hay suficiente stock. Stock actual: {stock_actual}.")
-                return render(request, "core/form.html", {"form": form, "title": "Registrar venta"})
-
-            venta.save()
-
-            pago_inicial = form.cleaned_data.get("pago_inicial") or Decimal("0.00")
-            if pago_inicial > 0:
-                PagoVenta.objects.create(venta=venta, monto=pago_inicial, nota="Pago inicial")
-
-            messages.success(request, "Venta registrada.")
-            return redirect("inventario")
-    else:
-        form = VentaForm()
-    return render(request, "core/form.html", {"form": form, "title": "Registrar venta"})
-
-
-# ---------------------------
-# Deudas + Abonos
-# ---------------------------
-def deudas_list(request):
-    # ventas a plazos con deuda > 0
-    ventas = Venta.objects.filter(a_plazos=True).select_related("producto", "producto__proveedor").order_by("-fecha")
-
-    # Calculamos deuda en Python para mantenerlo simple
-    ventas_con_deuda = [v for v in ventas if v.deuda > 0]
-
-    return render(request, "core/deudas_list.html", {"ventas": ventas_con_deuda})
-
-
-def abono_create(request, venta_id):
-    venta = get_object_or_404(Venta.objects.select_related("producto"), id=venta_id)
-
-    if request.method == "POST":
-        form = PagoVentaForm(request.POST)
-        if form.is_valid():
-            pago = form.save(commit=False)
-            pago.venta = venta
-
-            # No permitir abonar más de lo que se debe
-            if pago.monto > venta.deuda:
-                messages.error(request, f"El abono excede la deuda. Deuda actual: {venta.deuda}")
-            else:
-                pago.save()
-                messages.success(request, "Abono registrado.")
-                return redirect("deudas_list")
-    else:
-        form = PagoVentaForm()
-
-    return render(request, "core/abono_form.html", {"venta": venta, "form": form})
-
-
-# ---------------------------
-# CRUD Proveedor
-# ---------------------------
 def proveedor_list(request):
-    q = request.GET.get("q", "").strip()
-    qs = Proveedor.objects.all().order_by("nombre")
-    if q:
-        qs = qs.filter(nombre__icontains=q)
-    return render(request, "core/proveedor_list.html", {"proveedores": qs, "q": q})
+    proveedores = Proveedor.objects.all().order_by("nombre")
+    return render(request, "core/proveedor_list.html", {"proveedores": proveedores})
 
 
 def proveedor_create(request):
@@ -223,40 +117,38 @@ def proveedor_create(request):
             return redirect("proveedor_list")
     else:
         form = ProveedorForm()
-    return render(request, "core/form.html", {"form": form, "title": "Nuevo proveedor"})
+    return render(request, "core/form.html", {"form": form, "title": "Crear proveedor"})
 
 
 def proveedor_update(request, pk):
-    obj = get_object_or_404(Proveedor, pk=pk)
+    proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == "POST":
-        form = ProveedorForm(request.POST, instance=obj)
+        form = ProveedorForm(request.POST, instance=proveedor)
         if form.is_valid():
             form.save()
             messages.success(request, "Proveedor actualizado.")
             return redirect("proveedor_list")
     else:
-        form = ProveedorForm(instance=obj)
+        form = ProveedorForm(instance=proveedor)
     return render(request, "core/form.html", {"form": form, "title": "Editar proveedor"})
 
 
 def proveedor_delete(request, pk):
-    obj = get_object_or_404(Proveedor, pk=pk)
+    proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == "POST":
-        obj.delete()
+        proveedor.delete()
         messages.success(request, "Proveedor eliminado.")
         return redirect("proveedor_list")
-    return render(request, "core/confirm_delete.html", {"obj": obj, "title": "Eliminar proveedor"})
+    return render(request, "core/confirm_delete.html", {"obj": proveedor, "title": "Eliminar proveedor"})
 
 
-# ---------------------------
-# CRUD Tipo
-# ---------------------------
+# =========================
+# Tipos CRUD
+# =========================
+
 def tipo_list(request):
-    q = request.GET.get("q", "").strip()
-    qs = TipoJoya.objects.all().order_by("nombre")
-    if q:
-        qs = qs.filter(nombre__icontains=q)
-    return render(request, "core/tipo_list.html", {"tipos": qs, "q": q})
+    tipos = TipoJoya.objects.all().order_by("nombre")
+    return render(request, "core/tipo_list.html", {"tipos": tipos})
 
 
 def tipo_create(request):
@@ -268,54 +160,38 @@ def tipo_create(request):
             return redirect("tipo_list")
     else:
         form = TipoJoyaForm()
-    return render(request, "core/form.html", {"form": form, "title": "Nuevo tipo"})
+    return render(request, "core/form.html", {"form": form, "title": "Crear tipo"})
 
 
 def tipo_update(request, pk):
-    obj = get_object_or_404(TipoJoya, pk=pk)
+    tipo = get_object_or_404(TipoJoya, pk=pk)
     if request.method == "POST":
-        form = TipoJoyaForm(request.POST, instance=obj)
+        form = TipoJoyaForm(request.POST, instance=tipo)
         if form.is_valid():
             form.save()
             messages.success(request, "Tipo actualizado.")
             return redirect("tipo_list")
     else:
-        form = TipoJoyaForm(instance=obj)
+        form = TipoJoyaForm(instance=tipo)
     return render(request, "core/form.html", {"form": form, "title": "Editar tipo"})
 
 
 def tipo_delete(request, pk):
-    obj = get_object_or_404(TipoJoya, pk=pk)
+    tipo = get_object_or_404(TipoJoya, pk=pk)
     if request.method == "POST":
-        obj.delete()
+        tipo.delete()
         messages.success(request, "Tipo eliminado.")
         return redirect("tipo_list")
-    return render(request, "core/confirm_delete.html", {"obj": obj, "title": "Eliminar tipo"})
+    return render(request, "core/confirm_delete.html", {"obj": tipo, "title": "Eliminar tipo"})
 
 
-# ---------------------------
-# CRUD Producto
-# ---------------------------
+# =========================
+# Productos CRUD (opcional)
+# =========================
+
 def producto_list(request):
-    q = request.GET.get("q", "").strip()
-    proveedor_id = request.GET.get("proveedor", "").strip()
-    tipo_id = request.GET.get("tipo", "").strip()
-
-    qs = productos_con_stock_qs().order_by("nombre")
-
-    if q:
-        qs = qs.filter(nombre__icontains=q)
-    if proveedor_id.isdigit():
-        qs = qs.filter(proveedor_id=int(proveedor_id))
-    if tipo_id.isdigit():
-        qs = qs.filter(tipo_id=int(tipo_id))
-
-    return render(request, "core/producto_list.html", {
-        "productos": qs,
-        "proveedores": Proveedor.objects.all().order_by("nombre"),
-        "tipos": TipoJoya.objects.all().order_by("nombre"),
-        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id},
-    })
+    productos = Producto.objects.select_related("proveedor", "tipo").all().order_by("nombre")
+    return render(request, "core/producto_list.html", {"productos": productos})
 
 
 def producto_create(request):
@@ -327,26 +203,171 @@ def producto_create(request):
             return redirect("producto_list")
     else:
         form = ProductoForm()
-    return render(request, "core/form.html", {"form": form, "title": "Nuevo producto"})
+    return render(request, "core/form.html", {"form": form, "title": "Crear producto"})
 
 
 def producto_update(request, pk):
-    obj = get_object_or_404(Producto, pk=pk)
+    producto = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
-        form = ProductoForm(request.POST, instance=obj)
+        form = ProductoForm(request.POST, instance=producto)
         if form.is_valid():
             form.save()
             messages.success(request, "Producto actualizado.")
             return redirect("producto_list")
     else:
-        form = ProductoForm(instance=obj)
+        form = ProductoForm(instance=producto)
     return render(request, "core/form.html", {"form": form, "title": "Editar producto"})
 
 
 def producto_delete(request, pk):
-    obj = get_object_or_404(Producto, pk=pk)
+    producto = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
-        obj.delete()
+        producto.delete()
         messages.success(request, "Producto eliminado.")
         return redirect("producto_list")
-    return render(request, "core/confirm_delete.html", {"obj": obj, "title": "Eliminar producto"})
+    return render(request, "core/confirm_delete.html", {"obj": producto, "title": "Eliminar producto"})
+
+
+# =========================
+# Compras (IN) - Unificada + Edit/Delete/List
+# =========================
+
+def compra_create(request):
+    if request.method == "POST":
+        form = CompraUnificadaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Compra registrada.")
+            return redirect("inventario")
+    else:
+        form = CompraUnificadaForm()
+
+    return render(request, "core/compra_unificada.html", {"form": form})
+
+
+def compra_list(request):
+    q = (request.GET.get("q") or "").strip()
+
+    compras = (
+        Movimiento.objects
+        .filter(tipo="IN")
+        .select_related("producto", "producto__proveedor", "producto__tipo")
+        .order_by("-fecha")
+    )
+
+    if q:
+        compras = compras.filter(producto__nombre__icontains=q)
+
+    return render(request, "core/compra_list.html", {"compras": compras, "q": q})
+
+
+def compra_update(request, pk):
+    compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
+
+    if request.method == "POST":
+        form = CompraEditForm(request.POST, instance=compra)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Compra actualizada.")
+            return redirect("compra_list")
+    else:
+        form = CompraEditForm(instance=compra)
+
+    return render(request, "core/form.html", {"form": form, "title": "Editar compra"})
+
+
+def compra_delete(request, pk):
+    compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
+
+    if request.method == "POST":
+        compra.delete()
+        messages.success(request, "Compra eliminada.")
+        return redirect("compra_list")
+
+    return render(request, "core/confirm_delete.html", {"obj": compra, "title": "Eliminar compra"})
+
+
+# =========================
+# Ventas + Deudas + Pagos
+# =========================
+
+def venta_create(request):
+    if request.method == "POST":
+        form = VentaForm(request.POST)
+        if form.is_valid():
+            venta = form.save(commit=False)
+            venta.save()
+
+            pago_inicial = form.cleaned_data.get("pago_inicial") or Decimal("0.00")
+            if pago_inicial > 0:
+                PagoVenta.objects.create(venta=venta, monto=pago_inicial, nota="Pago inicial")
+
+            messages.success(request, "Venta registrada.")
+            return redirect("dashboard")
+    else:
+        form = VentaForm()
+
+    return render(request, "core/venta_form.html", {"form": form})
+
+
+def deudas_list(request):
+    # Ventas con deuda > 0 (calculado)
+    ventas = Venta.objects.select_related("producto", "producto__proveedor").all().order_by("-fecha")
+    con_deuda = []
+    for v in ventas:
+        total = (v.precio_unitario or Decimal("0.00")) * v.cantidad
+        pagado = PagoVenta.objects.filter(venta=v).aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
+        deuda = total - pagado
+        if deuda > 0:
+            v._total = total
+            v._pagado = pagado
+            v._deuda = deuda
+            con_deuda.append(v)
+
+    return render(request, "core/deudas_list.html", {"ventas": con_deuda})
+
+
+def venta_detalle(request, pk):
+    venta = get_object_or_404(Venta, pk=pk)
+    pagos = PagoVenta.objects.filter(venta=venta).order_by("-fecha")
+
+    total = (venta.precio_unitario or Decimal("0.00")) * venta.cantidad
+    pagado = pagos.aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
+    deuda = total - pagado
+
+    return render(request, "core/venta_detalle.html", {
+        "venta": venta,
+        "pagos": pagos,
+        "total": total,
+        "pagado": pagado,
+        "deuda": deuda,
+    })
+
+
+def pago_create(request, venta_id):
+    venta = get_object_or_404(Venta, pk=venta_id)
+
+    if request.method == "POST":
+        form = PagoVentaForm(request.POST)
+        if form.is_valid():
+            pago = form.save(commit=False)
+            pago.venta = venta
+            pago.save()
+            messages.success(request, "Pago registrado.")
+            return redirect("venta_detalle", pk=venta.id)
+    else:
+        form = PagoVentaForm()
+
+    return render(request, "core/form.html", {"form": form, "title": "Registrar pago"})
+
+
+def pago_delete(request, pk):
+    pago = get_object_or_404(PagoVenta, pk=pk)
+    venta_id = pago.venta_id
+
+    if request.method == "POST":
+        pago.delete()
+        messages.success(request, "Pago eliminado.")
+        return redirect("venta_detalle", pk=venta_id)
+
+    return render(request, "core/confirm_delete.html", {"obj": pago, "title": "Eliminar pago"})
