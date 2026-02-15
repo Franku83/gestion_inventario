@@ -1,101 +1,107 @@
-<!doctype html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Inventario Joyas{% endblock %}</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <style>
-    body { background: #f5f7fb; }
-    .card { border-radius: 14px; }
-    .kpi { border-radius: 14px; }
-    .table td, .table th { vertical-align: middle; }
-  </style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-  <div class="container-fluid px-4">
-    <a class="navbar-brand fw-semibold" href="{% url 'dashboard' %}">Inventario Joyas</a>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{% url 'dashboard' %}">Inventario Joyas</a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse" id="nav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+
         {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
+          </li>
 
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
-        </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventario' %}">Inventario</a>
+          </li>
 
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'inventario' %}">Inventario</a>
-        </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Compra</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{% url 'compra_list' %}">Lista de compras</a></li>
+              <li><a class="dropdown-item" href="{% url 'compra_create' %}">Registrar compra</a></li>
+            </ul>
+          </li>
 
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Compra</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'compra_create' %}">Registrar compra</a></li>
-            <li><a class="dropdown-item" href="{% url 'compra_list' %}">Ver compras</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item" href="{% url 'tipo_list' %}">Tipos</a></li>
-                  {% endif %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Venta</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{% url 'venta_create' %}">Registrar venta</a></li>
+              <li><a class="dropdown-item" href="{% url 'deudas_list' %}">Deudas</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedores</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{% url 'proveedor_list' %}">Lista</a></li>
+              <li><a class="dropdown-item" href="{% url 'proveedor_create' %}">Crear</a></li>
+            </ul>
+          </li>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Tipos</a>
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="{% url 'tipo_list' %}">Lista</a></li>
+              <li><a class="dropdown-item" href="{% url 'tipo_create' %}">Crear</a></li>
+            </ul>
+          </li>
+
+        {% endif %}
       </ul>
-      {% if user.is_authenticated %}
-      <div class="d-flex align-items-center gap-2">
-        <span class="text-light small">Hola, {{ user.username }}</span>
-        <form method="post" action="{% url 'logout' %}" class="m-0">
-          {% csrf_token %}
-          <button class="btn btn-sm btn-outline-light" type="submit">Salir</button>
-        </form>
-      </div>
-      {% endif %}
 
-        </li>
-
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Venta</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'venta_create' %}">Registrar venta</a></li>
-            <li><a class="dropdown-item" href="{% url 'deudas_list' %}">Deudas</a></li>
-          </ul>
-        </li>
-
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedores</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'proveedor_list' %}">Listar</a></li>
-            <li><a class="dropdown-item" href="{% url 'proveedor_create' %}">Crear</a></li>
-          </ul>
-        </li>
-
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Productos</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{% url 'producto_list' %}">Listar</a></li>
-            <li><a class="dropdown-item" href="{% url 'producto_create' %}">Crear</a></li>
-          </ul>
-        </li>
-
+      <ul class="navbar-nav ms-auto">
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <span class="navbar-text me-3">{{ user.username }}</span>
+          </li>
+          <li class="nav-item">
+            <form method="post" action="{% url 'logout' %}" class="d-inline">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-light" type="submit">Salir</button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="btn btn-sm btn-light" href="{% url 'login' %}">Entrar</a>
+          </li>
+        {% endif %}
       </ul>
+
     </div>
   </div>
 </nav>
 
 <div class="container py-4">
   {% if messages %}
-    {% for m in messages %}
-      <div class="alert alert-{{ m.tags|default:'info' }}" role="alert">{{ m }}</div>
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
     {% endfor %}
   {% endif %}
 
   {% block content %}{% endblock %}
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
