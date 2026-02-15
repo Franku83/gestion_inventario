@@ -28,8 +28,8 @@
             <th>Proveedor</th>
             <th class="text-end">Cantidad</th>
             <th class="text-end">Precio unit.</th>
-            <td class="text-end">{{ c.total }}</td>
-            <th></th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -40,19 +40,18 @@
             <td>{{ c.producto.proveedor.nombre }}</td>
             <td class="text-end">{{ c.cantidad }}</td>
             <td class="text-end">{{ c.precio_unitario }}</td>
-            <td class="text-end">{{ c.precio_unitario|floatformat:2|add:""|safe }}</td>
+            <td class="text-end">{{ c.total }}</td>
             <td class="text-end">
               <a class="btn btn-outline-secondary btn-sm" href="{% url 'compra_update' c.id %}">Editar</a>
               <a class="btn btn-outline-danger btn-sm" href="{% url 'compra_delete' c.id %}">Eliminar</a>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-muted">No hay compras registradas.</td></tr>
+          <tr><td colspan="7" class="text-muted">No hay compras.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-
   </div>
 </div>
 {% endblock %}
