@@ -19,6 +19,8 @@ class Movimiento(models.Model):
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     fecha = models.DateTimeField(auto_now_add=True)
     nota = models.CharField(max_length=255, blank=True)
+    
+    anulada = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-fecha"]

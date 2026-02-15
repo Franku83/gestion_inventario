@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.db.models import Sum, F
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
+from django.db.models.deletion import ProtectedError
+from django.views.decorators.http import require_POST
 
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
@@ -121,11 +123,25 @@ def proveedor_update(request, pk):
 
 def proveedor_delete(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
+
     if request.method == "POST":
-        proveedor.delete()
-        messages.success(request, "Proveedor eliminado.")
-        return redirect("proveedor_list")
+        try:
+            proveedor.delete()
+            messages.success(request, "Proveedor eliminado.")
+            return redirect("proveedor_list")
+        except ProtectedError:
+            messages.error(
+                request,
+                "No se puede eliminar este proveedor porque tiene productos/compras asociadas. "
+                "Primero elimina o cambia esos productos a otro proveedor."
+            )
+            return redirect("proveedor_list")
+        except Exception as e:
+            messages.error(request, f"Error eliminando proveedor: {e}")
+            return redirect("proveedor_list")
+
     return render(request, "core/confirm_delete.html", {"obj": proveedor, "title": "Eliminar proveedor"})
+
 
 
 # =========================
@@ -207,10 +223,23 @@ def producto_update(request, pk):
 
 def producto_delete(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
+
     if request.method == "POST":
-        producto.delete()
-        messages.success(request, "Producto eliminado.")
-        return redirect("producto_list")
+        try:
+            producto.delete()
+            messages.success(request, "Producto eliminado.")
+            return redirect("producto_list")
+        except ProtectedError:
+            messages.error(
+                request,
+                "No se puede eliminar este producto porque tiene compras/ventas asociadas. "
+                "Si fue un error, edítalo en vez de borrarlo."
+            )
+            return redirect("producto_list")
+        except Exception as e:
+            messages.error(request, f"Error eliminando producto: {e}")
+            return redirect("producto_list")
+
     return render(request, "core/confirm_delete.html", {"obj": producto, "title": "Eliminar producto"})
 
 
@@ -235,11 +264,12 @@ def compra_list(request):
     q = (request.GET.get("q") or "").strip()
 
     compras = (
-        Movimiento.objects
-        .filter(tipo="IN")
-        .select_related("producto", "producto__proveedor", "producto__tipo")
-        .order_by("-fecha")
-    )
+    Movimiento.objects
+    .filter(tipo="IN", anulada=False)  
+    .select_related("producto", "producto__proveedor", "producto__tipo")
+    .order_by("-fecha")
+)
+
 
     if q:
         compras = compras.filter(producto__nombre__icontains=q)
@@ -271,6 +301,14 @@ def compra_delete(request, pk):
         return redirect("compra_list")
 
     return render(request, "core/confirm_delete.html", {"obj": compra, "title": "Eliminar compra"})
+
+@require_POST
+def compra_anular(request, pk):
+    compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
+    compra.anulada = True
+    compra.save(update_fields=["anulada"])
+    messages.success(request, "Compra anulada (no se eliminó).")
+    return redirect("compra_list")
 
 
 # =========================
