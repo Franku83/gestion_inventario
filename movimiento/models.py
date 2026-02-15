@@ -25,9 +25,9 @@ class Movimiento(models.Model):
 
     def __str__(self):
         return f"{self.get_tipo_display()} - {self.producto} x{self.cantidad}"
-@property
-def total(self):
-    return (self.precio_unitario or Decimal("0.00")) * self.cantidad
+    @property
+    def total(self):
+        return (self.precio_unitario or Decimal("0.00")) * self.cantidad
 
 class Venta(models.Model):
     producto = models.ForeignKey(

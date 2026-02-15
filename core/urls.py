@@ -23,6 +23,12 @@ urlpatterns = [
     path("tipos/<int:pk>/editar/", views.tipo_update, name="tipo_update"),
     path("tipos/<int:pk>/eliminar/", views.tipo_delete, name="tipo_delete"),
 
+    # productos ✅ (ESTO ES LO QUE FALTABA)
+    path("productos/", views.producto_list, name="producto_list"),
+    path("productos/crear/", views.producto_create, name="producto_create"),
+    path("productos/<int:pk>/editar/", views.producto_update, name="producto_update"),
+    path("productos/<int:pk>/eliminar/", views.producto_delete, name="producto_delete"),
+
     # ventas / deudas / pagos
     path("venta/registrar/", views.venta_create, name="venta_create"),
     path("deudas/", views.deudas_list, name="deudas_list"),
