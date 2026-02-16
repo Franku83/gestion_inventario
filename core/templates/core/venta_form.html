@@ -1,10 +1,100 @@
 {% extends "core/base.html" %}
 {% block content %}
-  <h2>Registrar venta</h2>
+<div class="container py-4" style="max-width: 900px;">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0">Registrar venta</h2>
+      <small class="text-muted">Completa los datos y guarda la venta</small>
+    </div>
+  </div>
 
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar</button>
-  </form>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Producto</label>
+            {{ form.producto }}
+            {% if form.producto.errors %}<div class="text-danger small">{{ form.producto.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Cantidad</label>
+            {{ form.cantidad }}
+            {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Precio unitario</label>
+            {{ form.precio_unitario }}
+            {% if form.precio_unitario.errors %}<div class="text-danger small">{{ form.precio_unitario.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Total</label>
+            <input id="total_preview" class="form-control" value="0.00" disabled />
+            <small class="text-muted">Calculado automáticamente</small>
+          </div>
+
+          <div class="col-md-6">
+            <div class="form-check mt-4">
+              {{ form.a_plazos }}
+              <label class="form-check-label">A plazos</label>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Pago inicial</label>
+            {{ form.pago_inicial }}
+            {% if form.pago_inicial.errors %}<div class="text-danger small">{{ form.pago_inicial.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Nota</label>
+            {{ form.nota }}
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Guardar</button>
+          <a class="btn btn-outline-secondary" href="{% url 'venta_list' %}">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toNumber(v){
+    const n = parseFloat((v || "0").toString().replace(",", "."));
+    return isNaN(n) ? 0 : n;
+  }
+
+  const qty = document.getElementById("id_cantidad");
+  const price = document.getElementById("id_precio_unitario");
+  const total = document.getElementById("total_preview");
+  const plazos = document.getElementById("id_a_plazos");
+  const pagoInicial = document.getElementById("id_pago_inicial");
+
+  function updateTotal(){
+    const t = toNumber(qty.value) * toNumber(price.value);
+    total.value = t.toFixed(2);
+  }
+
+  function togglePagoInicial(){
+    const on = plazos.checked;
+    pagoInicial.disabled = !on;
+    if(!on) pagoInicial.value = "0.00";
+  }
+
+  [qty, price].forEach(el => el && el.addEventListener("input", updateTotal));
+  plazos && plazos.addEventListener("change", togglePagoInicial);
+
+  updateTotal();
+  togglePagoInicial();
+</script>
 {% endblock %}
