@@ -1,10 +1,82 @@
-{% extends "core/base.html" %}
+{% extends "base.html" %}
 {% block content %}
-  <h2>Registrar venta</h2>
 
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar</button>
-  </form>
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="bi bi-cash-coin me-2"></i>Registrar venta
+            </h4>
+        </div>
+
+        <div class="card-body">
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <div class="row g-3">
+
+                    <!-- Producto -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Producto</label>
+                        {{ form.producto }}
+                    </div>
+
+                    <!-- Cantidad -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Cantidad</label>
+                        {{ form.cantidad }}
+                    </div>
+
+                    <!-- Precio -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Precio unitario ($)</label>
+                        {{ form.precio_unitario }}
+                    </div>
+
+                    <!-- A plazos -->
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="form-check mt-2">
+                            {{ form.a_plazos }}
+                            <label class="form-check-label ms-1">
+                                Venta a plazos
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Pago inicial -->
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Pago inicial ($)</label>
+                        {{ form.pago_inicial }}
+                    </div>
+
+                    <!-- Nota -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Nota</label>
+                        {{ form.nota }}
+                    </div>
+
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between">
+
+                    <a href="{% url 'venta_list' %}" class="btn btn-outline-secondary">
+                        Cancelar
+                    </a>
+
+                    <button type="submit" class="btn btn-success px-4">
+                        <i class="bi bi-check-lg me-1"></i> Guardar venta
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+
