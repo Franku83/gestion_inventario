@@ -1,72 +1,10 @@
-{% extends "base.html" %}
+{% extends "core/base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">Registrar venta</h5>
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'venta_list' %}">Volver</a>
-        </div>
-        <div class="card-body">
-          <form method="post" novalidate>
-            {% csrf_token %}
+  <h2>Registrar venta</h2>
 
-            {% if form.non_field_errors %}
-              <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-            {% endif %}
-
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label">{{ form.producto.label }}</label>
-                {{ form.producto }}
-                {% if form.producto.errors %}<div class="text-danger small">{{ form.producto.errors }}</div>{% endif %}
-              </div>
-
-              <div class="col-md-4">
-                <label class="form-label">{{ form.cantidad.label }}</label>
-                {{ form.cantidad }}
-                {% if form.cantidad.errors %}<div class="text-danger small">{{ form.cantidad.errors }}</div>{% endif %}
-              </div>
-
-              <div class="col-md-4">
-                <label class="form-label">{{ form.precio_unitario.label }}</label>
-                {{ form.precio_unitario }}
-                {% if form.precio_unitario.errors %}<div class="text-danger small">{{ form.precio_unitario.errors }}</div>{% endif %}
-              </div>
-
-              <div class="col-md-4 d-flex align-items-end">
-                <div class="form-check">
-                  {{ form.a_plazos }}
-                  <label class="form-check-label" for="{{ form.a_plazos.id_for_label }}">{{ form.a_plazos.label }}</label>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label">{{ form.nota.label }}</label>
-                {{ form.nota }}
-                {% if form.nota.errors %}<div class="text-danger small">{{ form.nota.errors }}</div>{% endif %}
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label">{{ form.pago_inicial.label }}</label>
-                {{ form.pago_inicial }}
-                {% if form.pago_inicial.errors %}<div class="text-danger small">{{ form.pago_inicial.errors }}</div>{% endif %}
-              </div>
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-              <button class="btn btn-primary" type="submit">Guardar</button>
-              <a class="btn btn-outline-secondary" href="{% url 'venta_list' %}">Cancelar</a>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <p class="text-muted small mt-3 mb-0">
-        Tip: si marcas <b>A plazos</b>, puedes registrar el pago inicial y luego completar pagos desde el módulo de pagos.
-      </p>
-    </div>
-  </div>
-</div>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Guardar</button>
+  </form>
 {% endblock %}
