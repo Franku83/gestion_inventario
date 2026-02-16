@@ -1,82 +1,127 @@
 {% extends "core/base.html" %}
-{% block content %}
+{% load static %}
 
-<div class="container mt-4">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">
-                <i class="bi bi-cash-coin me-2"></i>Registrar venta
-            </h4>
+{% block content %}
+<div class="container py-4" style="max-width: 980px;">
+  <div class="row justify-content-center">
+    <div class="col-12">
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-white">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <h3 class="mb-0">Registrar venta</h3>
+              <small class="text-muted">Completa los datos y guarda la venta.</small>
+            </div>
+          </div>
         </div>
 
         <div class="card-body">
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {{ form.non_field_errors }}
+            </div>
+          {% endif %}
 
-            <form method="post" novalidate>
-                {% csrf_token %}
+          <form method="post" novalidate>
+            {% csrf_token %}
 
-                <div class="row g-3">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Producto</label>
+                {{ form.producto }}
+                {% if form.producto.errors %}
+                  <div class="invalid-feedback d-block">{{ form.producto.errors|striptags }}</div>
+                {% endif %}
+              </div>
 
-                    <!-- Producto -->
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Producto</label>
-                        {{ form.producto }}
-                    </div>
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Cantidad</label>
+                {{ form.cantidad }}
+                {% if form.cantidad.errors %}
+                  <div class="invalid-feedback d-block">{{ form.cantidad.errors|striptags }}</div>
+                {% endif %}
+              </div>
 
-                    <!-- Cantidad -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Cantidad</label>
-                        {{ form.cantidad }}
-                    </div>
-
-                    <!-- Precio -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Precio unitario ($)</label>
-                        {{ form.precio_unitario }}
-                    </div>
-
-                    <!-- A plazos -->
-                    <div class="col-md-3 d-flex align-items-end">
-                        <div class="form-check mt-2">
-                            {{ form.a_plazos }}
-                            <label class="form-check-label ms-1">
-                                Venta a plazos
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Pago inicial -->
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Pago inicial ($)</label>
-                        {{ form.pago_inicial }}
-                    </div>
-
-                    <!-- Nota -->
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">Nota</label>
-                        {{ form.nota }}
-                    </div>
-
+              <div class="col-md-4">
+                <label class="form-label fw-semibold">Precio unitario</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  {{ form.precio_unitario }}
                 </div>
+                {% if form.precio_unitario.errors %}
+                  <div class="invalid-feedback d-block">{{ form.precio_unitario.errors|striptags }}</div>
+                {% endif %}
+              </div>
 
-                <hr class="my-4">
-
-                <div class="d-flex justify-content-between">
-
-                    <a href="{% url 'venta_list' %}" class="btn btn-outline-secondary">
-                        Cancelar
-                    </a>
-
-                    <button type="submit" class="btn btn-success px-4">
-                        <i class="bi bi-check-lg me-1"></i> Guardar venta
-                    </button>
-
+              <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                  {{ form.a_plazos }}
+                  <label class="form-check-label fw-semibold">A plazos</label>
                 </div>
+                {% if form.a_plazos.errors %}
+                  <div class="invalid-feedback d-block">{{ form.a_plazos.errors|striptags }}</div>
+                {% endif %}
+              </div>
 
-            </form>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Nota</label>
+                {{ form.nota }}
+                {% if form.nota.errors %}
+                  <div class="invalid-feedback d-block">{{ form.nota.errors|striptags }}</div>
+                {% endif %}
+              </div>
 
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Pago inicial</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  {{ form.pago_inicial }}
+                </div>
+                <small class="text-muted">Si es “A plazos”, esto se descuenta de la deuda.</small>
+                {% if form.pago_inicial.errors %}
+                  <div class="invalid-feedback d-block">{{ form.pago_inicial.errors|striptags }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex gap-2 justify-content-end">
+              <!-- FIX: antes decía venta_list y no existe -->
+              <a class="btn btn-outline-secondary" href="{% url 'deudas_list' %}">
+                Cancelar
+              </a>
+              <button type="submit" class="btn btn-success px-4">
+                Guardar venta
+              </button>
+            </div>
+          </form>
         </div>
+      </div>
+
+      <script>
+        // Aplica estilos Bootstrap sin tocar forms.py
+        (function () {
+          const form = document.querySelector("form");
+          if (!form) return;
+
+          form.querySelectorAll("input, select, textarea").forEach(el => {
+            const type = (el.getAttribute("type") || "").toLowerCase();
+
+            if (type === "checkbox") {
+              el.classList.add("form-check-input");
+            } else {
+              el.classList.add("form-control");
+            }
+          });
+
+          // Que los selects se vean bien
+          form.querySelectorAll("select").forEach(el => el.classList.add("form-select"));
+        })();
+      </script>
+
     </div>
+  </div>
 </div>
-
 {% endblock %}
-
