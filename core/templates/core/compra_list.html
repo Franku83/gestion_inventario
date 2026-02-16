@@ -40,7 +40,7 @@
             <td>{{ c.producto.proveedor.nombre }}</td>
             <td class="text-end">{{ c.cantidad }}</td>
             <td class="text-end">{{ c.precio_unitario }}</td>
-            <td class="text-end">{{ c.precio_unitario|floatformat:2|add:""|safe }}</td>
+            <td class="text-end">{{ c.precio_unitario|floatformat:2 }}</td>
             <td class="text-end">
                 <a class="btn btn-outline-secondary btn-sm" href="{% url 'compra_update' c.id %}">Editar</a>
 

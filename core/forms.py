@@ -1,7 +1,9 @@
 from django import forms
 from decimal import Decimal
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
+import producto
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
@@ -93,6 +95,20 @@ class VentaForm(forms.ModelForm):
         if p < 0:
             raise ValidationError("El pago no puede ser negativo.")
         return p
+    
+    def clean(self):
+        cleaned = super().clean()
+        producto = cleaned.get("producto")
+        cantidad = cleaned.get("cantidad")
+
+        if producto and cantidad:
+            entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
+            salidas = Venta.objects.filter(producto=producto).aggregate(s=Sum("cantidad"))["s"] or 0
+            stock = int(entradas) - int(salidas)
+
+        if cantidad > stock:
+            raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
+        return cleaned
 
 
 class PagoVentaForm(forms.ModelForm):

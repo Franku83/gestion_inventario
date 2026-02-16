@@ -143,3 +143,27 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# ==========================
+# Seguridad en producción
+# ==========================
+if not DEBUG:
+    # Railway / proxies (para que Django entienda HTTPS detrás del proxy)
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Cookies seguras
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Evitar que se use tu sitio en iframes
+    X_FRAME_OPTIONS = "DENY"
+
+    # HSTS (fuerza HTTPS)
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "3600"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Seguridad extra
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+
+
