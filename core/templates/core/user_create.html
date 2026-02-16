@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0">Crear usuario</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">
+            Este formulario crea <b>usuarios normales</b> (NO superuser). Solo lo ve alguien con <b>is_staff</b>.
+          </p>
+
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags }} mb-3">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="form-label">Usuario</label>
+              {{ form.username }}
+              {% if form.username.errors %}<div class="text-danger small">{{ form.username.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Contraseña</label>
+              {{ form.password1 }}
+              {% if form.password1.errors %}<div class="text-danger small">{{ form.password1.errors }}</div>{% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Repetir contraseña</label>
+              {{ form.password2 }}
+              {% if form.password2.errors %}<div class="text-danger small">{{ form.password2.errors }}</div>{% endif %}
+            </div>
+
+            <button class="btn btn-primary" type="submit">Crear</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-3">
+        Si quieres que un usuario pueda administrar otros, entra a <code>/admin/</code> y márcalo como <b>Staff</b>.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,9 @@
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth import get_user_model
 from django.db.models import Sum, F
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect, get_object_or_404
@@ -25,6 +28,10 @@ from .forms import (
 )
 
 
+
+
+def staff_required(view_func):
+    return user_passes_test(lambda u: u.is_authenticated and u.is_staff)(view_func)
 # =========================
 # Dashboard / Inventario
 # =========================
@@ -427,6 +434,12 @@ def compra_anular(request, pk):
 # Ventas + Deudas + Pagos
 # =========================
 
+
+@login_required
+def venta_list(request):
+    ventas = Venta.objects.select_related("producto").order_by("-fecha")
+    return render(request, "core/venta_list.html", {"ventas": ventas})
+
 def venta_create(request):
     if request.method == "POST":
         form = VentaForm(request.POST)
@@ -439,7 +452,7 @@ def venta_create(request):
                 PagoVenta.objects.create(venta=venta, monto=pago_inicial, nota="Pago inicial")
 
             messages.success(request, "Venta registrada.")
-            return redirect("dashboard")
+            return redirect('venta_list')
     else:
         form = VentaForm()
 
@@ -507,3 +520,28 @@ def pago_delete(request, pk):
         return redirect("venta_detalle", pk=venta_id)
 
     return render(request, "core/confirm_delete.html", {"obj": pago, "title": "Eliminar pago"})
+
+
+@staff_required
+def user_create(request):
+    """Crear usuarios normales (no superuser) desde la web. Solo staff."""
+    User = get_user_model()
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        for _name, _field in form.fields.items():
+            _field.widget.attrs.setdefault('class', 'form-control')
+        if form.is_valid():
+            user = form.save(commit=False)
+            # Asegura que NO sea superuser
+            user.is_superuser = False
+            # Si quieres que puedan entrar al admin, marca is_staff manualmente en /admin/
+            user.save()
+            messages.success(request, f"Usuario '{user.username}' creado.")
+            return redirect("user_create")
+    else:
+        form = UserCreationForm()
+        for _name, _field in form.fields.items():
+            _field.widget.attrs.setdefault('class', 'form-control')
+        for _name, _field in form.fields.items():
+            _field.widget.attrs.setdefault('class', 'form-control')
+    return render(request, "core/user_create.html", {"form": form})

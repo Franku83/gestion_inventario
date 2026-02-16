@@ -7,12 +7,7 @@
     <div class="card kpi shadow-sm">
       <div class="card-body">
         <div class="text-muted">Dinero en stock</div>
-        <div class="fs-3 fw-bold">
-          ${{ dinero_stock_usd|floatformat:2 }} <span class="text-muted fs-6">USD</span>
-        </div>
-        <div class="text-muted">
-          Bs {{ dinero_stock_bs|floatformat:2 }}
-        </div>
+        <div class="fs-3 fw-bold">{{ dinero_stock }}</div>
       </div>
     </div>
   </div>
@@ -21,12 +16,7 @@
     <div class="card kpi shadow-sm">
       <div class="card-body">
         <div class="text-muted">Dinero vendido</div>
-        <div class="fs-3 fw-bold">
-          ${{ dinero_vendido_usd|floatformat:2 }} <span class="text-muted fs-6">USD</span>
-        </div>
-        <div class="text-muted">
-          Bs {{ dinero_vendido_bs|floatformat:2 }}
-        </div>
+        <div class="fs-3 fw-bold">{{ dinero_vendido }}</div>
       </div>
     </div>
   </div>
@@ -35,12 +25,7 @@
     <div class="card kpi shadow-sm">
       <div class="card-body">
         <div class="text-muted">Dinero deuda</div>
-        <div class="fs-3 fw-bold">
-          ${{ dinero_deuda_usd|floatformat:2 }} <span class="text-muted fs-6">USD</span>
-        </div>
-        <div class="text-muted">
-          Bs {{ dinero_deuda_bs|floatformat:2 }}
-        </div>
+        <div class="fs-3 fw-bold">{{ dinero_deuda }}</div>
       </div>
     </div>
   </div>
