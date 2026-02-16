@@ -4,6 +4,12 @@ from . import views
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("inventario/", views.inventario, name="inventario"),
+    # productos
+    path("productos/", views.producto_list, name="producto_list"),
+    path("productos/crear/", views.producto_create, name="producto_create"),
+    path("productos/<int:pk>/editar/", views.producto_update, name="producto_update"),
+    path("productos/<int:pk>/eliminar/", views.producto_delete, name="producto_delete"),
+
 
     # compra
     path("compra/", views.compra_list, name="compra_list"),
