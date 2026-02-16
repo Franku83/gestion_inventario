@@ -1,50 +1,220 @@
+{# templates/registration/login.html #}
 {% extends "core/base.html" %}
 
-{% block title %}Iniciar sesión{% endblock %}
+{% block title %}Login | Inventario Joyas{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 420px; margin-top: 70px;">
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <h4 class="mb-3 text-center">Iniciar sesión</h4>
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-[0_25px_60px_-20px_rgba(0,0,0,0.25)] ring-1 ring-black/5">
+    <div class="grid md:grid-cols-2">
 
-      {% if form.errors %}
-        <div class="alert alert-danger">
-          Usuario o contraseña incorrectos.
+      <!-- Left / Visual -->
+      <div class="relative hidden md:block bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 p-10">
+        <div class="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-white/15 blur-2xl"></div>
+        <div class="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-black/10 blur-2xl"></div>
+
+        <div class="relative h-full rounded-3xl bg-white/10 backdrop-blur-xl ring-1 ring-white/20 p-8 flex flex-col justify-between">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-white/90 text-sm ring-1 ring-white/20">
+              <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+              Secure Access
+            </div>
+
+            <h2 class="mt-6 text-4xl font-semibold tracking-tight text-white">
+              Bienvenido de vuelta
+            </h2>
+            <p class="mt-3 text-white/80 leading-relaxed">
+              Accede al sistema con una experiencia limpia, moderna y segura.
+            </p>
+          </div>
+
+          <!-- Fake illustration -->
+          <div class="mt-10 flex items-end gap-4">
+            <div class="h-40 w-28 rounded-2xl bg-white/90 shadow-lg flex items-center justify-center">
+              <div class="h-5 w-5 rounded-full bg-indigo-600"></div>
+            </div>
+            <div class="h-28 w-24 rounded-2xl bg-black/80 shadow-lg flex items-center justify-center">
+              <div class="flex gap-1">
+                <div class="h-2 w-2 rounded-full bg-white"></div>
+                <div class="h-2 w-2 rounded-full bg-white/70"></div>
+              </div>
+            </div>
+            <div class="h-32 w-32 rounded-2xl bg-yellow-300 shadow-lg flex items-center justify-center">
+              <div class="h-2 w-10 rounded-full bg-black/60"></div>
+            </div>
+          </div>
         </div>
-      {% endif %}
+      </div>
 
-      {% if next and user.is_authenticated %}
-        <div class="alert alert-warning">
-          Tu usuario no tiene permisos para ver esa página.
-        </div>
-      {% endif %}
+      <!-- Right / Form -->
+      <div class="p-6 sm:p-10 md:p-12">
+        <!-- Top -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="h-10 w-10 rounded-2xl bg-black text-white flex items-center justify-center font-bold">
+              J
+            </div>
+            <div>
+              <p class="text-sm text-slate-500">Inventario Joyas</p>
+              <p class="text-sm font-semibold text-slate-900">Acceso</p>
+            </div>
+          </div>
 
-      <form method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-
-        <div class="mb-3">
-          <label class="form-label" for="id_username">Usuario</label>
-          <input type="text" name="username" autofocus autocapitalize="none" autocomplete="username"
-                 maxlength="150" required id="id_username" class="form-control"
-                 value="{{ form.username.value|default_if_none:'' }}">
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="id_password">Contraseña</label>
-          <input type="password" name="password" autocomplete="current-password" required id="id_password"
-                 class="form-control">
+          <a href="#" class="text-sm text-slate-500 hover:text-slate-900">
+            Ayuda
+          </a>
         </div>
 
-        <input type="hidden" name="next" value="{{ next }}">
+        <h1 class="mt-10 text-3xl font-semibold tracking-tight text-slate-900">
+          Welcome back!
+        </h1>
+        <p class="mt-2 text-slate-500">
+          Ingresa tus datos para continuar
+        </p>
 
-        <button type="submit" class="btn btn-primary w-100">Entrar</button>
-      </form>
+        {% if form.errors %}
+          <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p class="font-semibold">No se pudo iniciar sesión.</p>
+            <p class="mt-1">Revisa usuario/clave e intenta de nuevo.</p>
+          </div>
+        {% endif %}
 
-      <div class="text-muted small mt-3">
-        Tip: crea el primer usuario con <code>python manage.py createsuperuser</code>.
+        {% if next %}
+          <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Estás accediendo para continuar a una página protegida.
+          </div>
+        {% endif %}
+
+        <form class="mt-8 space-y-5" method="post" action="{% url 'login' %}">
+          {% csrf_token %}
+
+          {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+          {% endif %}
+
+          <!-- Username -->
+          <div>
+            <label class="text-sm font-medium text-slate-700">Usuario / Email</label>
+            <div class="mt-2 relative">
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-18 8h18a2 2 0 002-2V8a2 2 0 00-2-2H3a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                </svg>
+              </span>
+
+              <input
+                type="text"
+                name="username"
+                autocomplete="username"
+                placeholder="maria / maria@correo.com"
+                class="w-full rounded-2xl border border-slate-200 bg-white px-10 py-3 text-slate-900 shadow-sm outline-none
+                       focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label class="text-sm font-medium text-slate-700">Password</label>
+            <div class="mt-2 relative">
+              <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 11c1.657 0 3 1.343 3 3v3H9v-3c0-1.657 1.343-3 3-3z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 11V8a5 5 0 0110 0v3" />
+                </svg>
+              </span>
+
+              <input
+                id="password"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                placeholder="••••••••"
+                class="w-full rounded-2xl border border-slate-200 bg-white px-10 py-3 text-slate-900 shadow-sm outline-none
+                       focus:border-slate-400 focus:ring-4 focus:ring-slate-200/60"
+                required
+              />
+
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-900"
+                onclick="togglePassword()"
+                aria-label="Mostrar/ocultar contraseña"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 text-sm text-slate-600 select-none">
+              <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-200" />
+              Recordarme
+            </label>
+            <a href="#" class="text-sm font-medium text-slate-700 hover:text-slate-900">
+              ¿Olvidaste tu clave?
+            </a>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-2xl bg-slate-900 px-4 py-3 text-white font-semibold shadow-lg shadow-slate-900/20
+                   hover:bg-slate-800 active:scale-[0.99] transition"
+          >
+            Log in
+          </button>
+
+          <div class="flex items-center gap-3">
+            <div class="h-px w-full bg-slate-200"></div>
+            <span class="text-xs text-slate-400">o</span>
+            <div class="h-px w-full bg-slate-200"></div>
+          </div>
+
+          <button
+            type="button"
+            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-semibold text-slate-700
+                   hover:bg-slate-50 active:scale-[0.99] transition flex items-center justify-center gap-2"
+          >
+            <!-- solo UI -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="h-5 w-5">
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.708 32.656 29.204 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.274 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+              <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.047 6.053 29.274 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+              <path fill="#4CAF50" d="M24 44c5.102 0 9.786-1.957 13.314-5.143l-6.148-5.205C29.123 35.15 26.668 36 24 36c-5.183 0-9.571-3.318-11.174-7.946l-6.52 5.02C9.597 39.556 16.227 44 24 44z"/>
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.79 2.216-2.273 4.09-4.137 5.447l.003-.002 6.148 5.205C36.882 39.001 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+            </svg>
+            Log in with Google
+          </button>
+
+          <p class="text-center text-sm text-slate-500">
+            ¿No tienes cuenta?
+            <a href="#" class="font-semibold text-slate-900 hover:underline">Regístrate</a>
+          </p>
+        </form>
+
+        <p class="mt-10 text-xs text-slate-400">
+          © <span id="year"></span> Inventario Joyas. Todos los derechos reservados.
+        </p>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById("year").textContent = new Date().getFullYear();
+  function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
+  }
+</script>
 {% endblock %}

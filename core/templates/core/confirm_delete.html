@@ -1,17 +1,27 @@
 {% extends "core/base.html" %}
-{% block title %}{{ title }}{% endblock %}
+{% block title %}Confirmar eliminación{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h5 class="mb-3">{{ title }}</h5>
-    <p>¿Seguro que deseas eliminar: <strong>{{ obj }}</strong>?</p>
+<div class="max-w-xl mx-auto px-4 py-10">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm">
+    <div class="p-6">
+      <h1 class="text-xl font-semibold text-slate-900">Confirmar eliminación</h1>
+      <p class="text-sm text-slate-600 mt-2">
+        ¿Seguro que deseas eliminar <span class="font-semibold text-slate-900">{{ object }}</span>?
+      </p>
 
-    <form method="post">
-      {% csrf_token %}
-      <button class="btn btn-danger" type="submit">Sí, eliminar</button>
-      <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Cancelar</a>
-    </form>
+      <form method="post" class="mt-6 flex items-center gap-3">
+        {% csrf_token %}
+        <button type="submit"
+                class="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
+          Sí, eliminar
+        </button>
+        <a href="{{ cancel_url|default:'/' }}"
+           class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          Cancelar
+        </a>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}

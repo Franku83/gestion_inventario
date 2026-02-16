@@ -2,121 +2,246 @@
 {% block title %}Registrar compra{% endblock %}
 
 {% block content %}
-<div class="row g-3">
-  <div class="col-lg-8">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h5 class="mb-3">Registrar compra</h5>
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Card principal -->
+    <div class="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm">
+      <div class="px-6 py-5 border-b border-slate-100">
+        <h1 class="text-xl font-semibold text-slate-900">Registrar compra</h1>
+        <p class="text-sm text-slate-500 mt-1">Completa los datos para registrar una compra.</p>
+      </div>
 
-        <form method="post">
-          {% csrf_token %}
+      <form method="post" class="p-6 space-y-6">
+        {% csrf_token %}
 
-          <div class="form-check mb-3">
-            {{ form.crear_producto }}
-            <label class="form-check-label" for="{{ form.crear_producto.id_for_label }}">
-              {{ form.crear_producto.label }}
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <!-- Sección: Producto -->
+        <section class="space-y-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-semibold">
+                C
+              </div>
+              <div>
+                <h2 class="text-base font-semibold text-slate-900">Producto</h2>
+                <p class="text-sm text-slate-500">Selecciona un producto existente o crea uno nuevo.</p>
+              </div>
+            </div>
+
+            <!-- Toggle Nuevo producto (checkbox REAL) -->
+            <label class="inline-flex items-center gap-3 select-none cursor-pointer">
+              <!-- el checkbox real -->
+              {{ form.crear_producto }}
+              <span class="text-sm font-medium text-slate-700">Nuevo producto</span>
+
+              <!-- switch visual -->
+              <span id="npSwitch"
+                    class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-200 transition">
+                <span id="npKnob"
+                      class="inline-block h-5 w-5 translate-x-1 rounded-full bg-white shadow transition"></span>
+              </span>
             </label>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label">{{ form.producto_existente.label }}</label>
+          <!-- Producto existente -->
+          <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-700">Producto existente</label>
+
+            <!-- IMPORTANTE: esto usa el widget del form -->
             {{ form.producto_existente }}
+
+            <p class="text-xs text-slate-500">Si marcas “Nuevo producto”, este campo se desactiva.</p>
+
             {% if form.producto_existente.errors %}
-              <div class="text-danger small">{{ form.producto_existente.errors|striptags }}</div>
+              <p class="text-sm text-red-600">{{ form.producto_existente.errors|striptags }}</p>
             {% endif %}
-            <div class="form-text">Si marcas “Nuevo producto”, esto no hace falta.</div>
           </div>
 
-          <hr class="my-4">
+          <hr class="border-slate-100">
 
-          <div id="nuevo-producto" class="p-3 rounded bg-light border">
-            <h6 class="mb-3">Nuevo producto (solo si marcaste “Nuevo producto”)</h6>
+          <!-- Bloque Nuevo producto (desplegable) -->
+          <div id="nuevoProductoWrap" class="hidden">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-4">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-slate-900">Nuevo producto</h3>
+                  <p class="text-xs text-slate-500">Solo si marcaste “Nuevo producto”.</p>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-1 text-xs font-medium text-white">
+                  Opcional
+                </span>
+              </div>
 
-            <div class="row g-2">
-              <div class="col-md-6">
-                <label class="form-label">Nombre</label>
-                {{ form.nombre }}
-                <div class="text-danger small">{{ form.nombre.errors|striptags }}</div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Proveedor</label>
-                {{ form.proveedor }}
-                <div class="text-danger small">{{ form.proveedor.errors|striptags }}</div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label">Tipo</label>
-                {{ form.tipo }}
-                <div class="text-danger small">{{ form.tipo.errors|striptags }}</div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">Costo</label>
-                {{ form.costo_unitario }}
-                <div class="text-danger small">{{ form.costo_unitario.errors|striptags }}</div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">Precio venta</label>
-                {{ form.precio_venta_unitario }}
-                <div class="text-danger small">{{ form.precio_venta_unitario.errors|striptags }}</div>
-              </div>
-              <div class="col-md-12">
-                <div class="form-check mt-2">
-                  {{ form.activo }}
-                  <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activo</label>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Nombre del producto</label>
+                  {{ form.nombre }}
+                  {% if form.nombre.errors %}
+                    <p class="text-sm text-red-600">{{ form.nombre.errors|striptags }}</p>
+                  {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Proveedor</label>
+                  {{ form.proveedor }}
+                  {% if form.proveedor.errors %}
+                    <p class="text-sm text-red-600">{{ form.proveedor.errors|striptags }}</p>
+                  {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Tipo</label>
+                  {{ form.tipo }}
+                  {% if form.tipo.errors %}
+                    <p class="text-sm text-red-600">{{ form.tipo.errors|striptags }}</p>
+                  {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Activo</label>
+                  <div class="flex items-center gap-2">
+                    {{ form.activo }}
+                    <span class="text-sm text-slate-700">Sí</span>
+                  </div>
+                  {% if form.activo.errors %}
+                    <p class="text-sm text-red-600">{{ form.activo.errors|striptags }}</p>
+                  {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Costo unitario</label>
+                  {{ form.costo_unitario }}
+                  {% if form.costo_unitario.errors %}
+                    <p class="text-sm text-red-600">{{ form.costo_unitario.errors|striptags }}</p>
+                  {% endif %}
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-sm font-medium text-slate-700">Precio venta unitario</label>
+                  {{ form.precio_venta_unitario }}
+                  {% if form.precio_venta_unitario.errors %}
+                    <p class="text-sm text-red-600">{{ form.precio_venta_unitario.errors|striptags }}</p>
+                  {% endif %}
                 </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <hr class="my-4">
+        <!-- Sección: Datos compra -->
+        <section class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-semibold">
+              D
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-slate-900">Datos de la compra</h2>
+              <p class="text-sm text-slate-500">Cantidad, precio y nota.</p>
+            </div>
+          </div>
 
-          <h6 class="mb-3">Datos de la compra</h6>
-          <div class="row g-2">
-            <div class="col-md-4">
-              <label class="form-label">Cantidad</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label class="text-sm font-medium text-slate-700">Cantidad</label>
               {{ form.cantidad }}
-              <div class="text-danger small">{{ form.cantidad.errors|striptags }}</div>
+              {% if form.cantidad.errors %}
+                <p class="text-sm text-red-600">{{ form.cantidad.errors|striptags }}</p>
+              {% endif %}
             </div>
-            <div class="col-md-4">
-              <label class="form-label">Precio unitario (compra)</label>
+
+            <div class="space-y-1">
+              <label class="text-sm font-medium text-slate-700">Precio unitario (compra)</label>
               {{ form.precio_unitario }}
-              <div class="text-danger small">{{ form.precio_unitario.errors|striptags }}</div>
-            </div>
-            <div class="col-md-12">
-              <label class="form-label">Nota</label>
-              {{ form.nota }}
-              <div class="text-danger small">{{ form.nota.errors|striptags }}</div>
+              {% if form.precio_unitario.errors %}
+                <p class="text-sm text-red-600">{{ form.precio_unitario.errors|striptags }}</p>
+              {% endif %}
             </div>
           </div>
 
-          <div class="d-flex gap-2 mt-4">
-            <button class="btn btn-primary" type="submit">Guardar compra</button>
-            <a class="btn btn-outline-secondary" href="{% url 'inventario' %}">Cancelar</a>
+          <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-700">Nota</label>
+            {{ form.nota }}
+            {% if form.nota.errors %}
+              <p class="text-sm text-red-600">{{ form.nota.errors|striptags }}</p>
+            {% endif %}
           </div>
-        </form>
-      </div>
-    </div>
-  </div>
+        </section>
 
-  <div class="col-lg-4">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <h6>Tip</h6>
-        <p class="text-muted mb-0">
-          Si el producto no existe, marca <strong>Nuevo producto</strong> y lo creas aquí mismo sin salir.
-        </p>
-      </div>
+        <!-- Acciones -->
+        <div class="flex items-center justify-between pt-2">
+          <div class="flex items-center gap-3">
+            <button type="submit"
+                    class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">
+              Guardar compra
+            </button>
+
+            <!-- Ajusta esta URL si tu nombre real es otro -->
+            <a href="{% url 'compra_list' %}"
+               class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              Cancelar
+            </a>
+          </div>
+
+          <span class="text-xs text-slate-400">Sistema interno</span>
+        </div>
+      </form>
     </div>
+
+    <!-- Tip -->
+    <aside class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 h-fit">
+      <div class="flex items-start gap-3">
+        <div class="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-semibold">
+          Tip
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-900">Tip</h3>
+          <p class="text-sm text-slate-600 mt-1">
+            Si el producto no existe, activa <span class="font-semibold">Nuevo producto</span> y lo creas aquí mismo sin salir.
+          </p>
+        </div>
+      </div>
+    </aside>
   </div>
 </div>
 
 <script>
-  // UX: ocultar/mostrar bloque nuevo producto
-  const chk = document.getElementById("{{ form.crear_producto.id_for_label }}");
-  const box = document.getElementById("nuevo-producto");
-  function toggleBox() {
-    box.style.display = chk.checked ? "block" : "none";
-  }
-  toggleBox();
-  chk.addEventListener("change", toggleBox);
+  (function () {
+    const crear = document.getElementById("id_crear_producto");
+    const nuevoWrap = document.getElementById("nuevoProductoWrap");
+    const prodExist = document.getElementById("id_producto_existente");
+
+    const sw = document.getElementById("npSwitch");
+    const knob = document.getElementById("npKnob");
+
+    function sync() {
+      const on = !!crear.checked;
+
+      // mostrar/ocultar bloque nuevo producto
+      nuevoWrap.classList.toggle("hidden", !on);
+
+      // deshabilitar producto existente cuando creas nuevo
+      if (prodExist) prodExist.disabled = on;
+
+      // switch visual
+      if (sw && knob) {
+        sw.classList.toggle("bg-slate-900", on);
+        sw.classList.toggle("bg-slate-200", !on);
+        knob.classList.toggle("translate-x-6", on);
+        knob.classList.toggle("translate-x-1", !on);
+      }
+    }
+
+    if (crear) {
+      // Asegura estilo aunque el widget venga “crudo”
+      crear.classList.add("sr-only"); // ocultamos checkbox real y usamos el switch visual
+      crear.addEventListener("change", sync);
+      sync();
+    }
+  })();
 </script>
 {% endblock %}

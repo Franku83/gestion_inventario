@@ -1,107 +1,257 @@
 {% load static %}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}Inventario Joyas{% endblock %}</title>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Inventario Joyas{% endblock %}</title>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Tailwind CDN (rápido para prototipo). En prod, ideal compilar. -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  {% block extra_head %}{% endblock %}
-</head>
-<body>
+    <!-- Opcional: configura algunos tokens -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            boxShadow: {
+              soft: "0 18px 50px -20px rgba(0,0,0,.35)",
+            },
+          },
+        },
+      };
+    </script>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{% url 'dashboard' %}">Inventario Joyas</a>
+    {% block extra_head %}{% endblock %}
+  </head>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    {% comment %}
+      NAVBAR: solo se muestra si está autenticado (para que el login quede “full screen” limpio).
+    {% endcomment %}
+    {% if user.is_authenticated %}
+      <header class="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div class="flex h-16 items-center justify-between">
+            <!-- Brand -->
+            <a href="{% url 'dashboard' %}" class="flex items-center gap-3">
+              <span class="grid h-10 w-10 place-items-center rounded-2xl bg-slate-900 text-white font-bold">
+                J
+              </span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">Inventario Joyas</div>
+                <div class="text-xs text-slate-500">Panel</div>
+              </div>
+            </a>
 
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav me-auto">
+            <!-- Desktop nav -->
+            <nav class="hidden lg:flex items-center gap-1">
+              <a href="{% url 'dashboard' %}" class="px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100">
+                Dashboard
+              </a>
+              <a href="{% url 'inventario' %}" class="px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100">
+                Inventario
+              </a>
 
-        {% if user.is_authenticated %}
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a>
-          </li>
+              <!-- Compra -->
+              <div class="relative">
+                <button type="button"
+                        class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
+                        data-menu="menu-compra">
+                  Compra
+                  <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <div id="menu-compra"
+                     class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
+                  <a href="{% url 'compra_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Lista de compras
+                  </a>
+                  <a href="{% url 'compra_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Registrar compra
+                  </a>
+                </div>
+              </div>
 
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'inventario' %}">Inventario</a>
-          </li>
+              <!-- Venta -->
+              <div class="relative">
+                <button type="button"
+                        class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
+                        data-menu="menu-venta">
+                  Venta
+                  <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <div id="menu-venta"
+                     class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
+                  <a href="{% url 'venta_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Registrar venta
+                  </a>
+                  <a href="{% url 'deudas_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Deudas
+                  </a>
+                </div>
+              </div>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Compra</a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{% url 'compra_list' %}">Lista de compras</a></li>
-              <li><a class="dropdown-item" href="{% url 'compra_create' %}">Registrar compra</a></li>
-            </ul>
-          </li>
+              <!-- Proveedores -->
+              <div class="relative">
+                <button type="button"
+                        class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
+                        data-menu="menu-proveedores">
+                  Proveedores
+                  <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <div id="menu-proveedores"
+                     class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
+                  <a href="{% url 'proveedor_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Listar
+                  </a>
+                  <a href="{% url 'proveedor_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Crear
+                  </a>
+                </div>
+              </div>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Venta</a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{% url 'venta_create' %}">Registrar venta</a></li>
-              <li><a class="dropdown-item" href="{% url 'deudas_list' %}">Deudas</a></li>
-            </ul>
-          </li>
+              <!-- Tipos -->
+              <div class="relative">
+                <button type="button"
+                        class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
+                        data-menu="menu-tipos">
+                  Tipos
+                  <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+                <div id="menu-tipos"
+                     class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
+                  <a href="{% url 'tipo_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Listar
+                  </a>
+                  <a href="{% url 'tipo_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Crear
+                  </a>
+                </div>
+              </div>
+            </nav>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Proveedores</a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{% url 'proveedor_list' %}">Lista</a></li>
-              <li><a class="dropdown-item" href="{% url 'proveedor_create' %}">Crear</a></li>
-            </ul>
-          </li>
+            <!-- Right -->
+            <div class="flex items-center gap-3">
+              <div class="hidden sm:flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span class="text-sm text-slate-600">{{ user.username }}</span>
+              </div>
 
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Tipos</a>
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="{% url 'tipo_list' %}">Lista</a></li>
-              <li><a class="dropdown-item" href="{% url 'tipo_create' %}">Crear</a></li>
-            </ul>
-          </li>
+              <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white
+                               hover:bg-slate-800 active:scale-[0.99] transition">
+                  Salir
+                </button>
+              </form>
 
-        {% endif %}
-      </ul>
+              <!-- Mobile menu button -->
+              <button type="button"
+                      class="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white hover:bg-slate-50"
+                      id="mobileBtn"
+                      aria-label="Abrir menú">
+                <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 5h14a1 1 0 110 2H3a1 1 0 110-2zm0 6h14a1 1 0 110 2H3a1 1 0 110-2zm0 6h14a1 1 0 110 2H3a1 1 0 110-2z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
-      <ul class="navbar-nav ms-auto">
-        {% if user.is_authenticated %}
-          <li class="nav-item">
-            <span class="navbar-text me-3">{{ user.username }}</span>
-          </li>
-          <li class="nav-item">
-            <form method="post" action="{% url 'logout' %}" class="d-inline">
-              {% csrf_token %}
-              <button class="btn btn-sm btn-light" type="submit">Salir</button>
-            </form>
-          </li>
-        {% else %}
-          <li class="nav-item">
-            <a class="btn btn-sm btn-light" href="{% url 'login' %}">Entrar</a>
-          </li>
-        {% endif %}
-      </ul>
+          <!-- Mobile nav -->
+          <div id="mobileMenu" class="lg:hidden hidden pb-4">
+            <div class="mt-3 grid gap-2 rounded-3xl border border-slate-200 bg-white p-3">
+              <a href="{% url 'dashboard' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Dashboard</a>
+              <a href="{% url 'inventario' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Inventario</a>
+              <a href="{% url 'compra_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Compras</a>
+              <a href="{% url 'venta_create' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Ventas</a>
+              <a href="{% url 'proveedor_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Proveedores</a>
+              <a href="{% url 'tipo_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Tipos</a>
+            </div>
+          </div>
+        </div>
+      </header>
+    {% endif %}
 
-    </div>
-  </div>
-</nav>
+    <!-- Main -->
+    <main class="{% if user.is_authenticated %}mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6{% else %}p-0{% endif %}">
+      <!-- Messages -->
+      {% if messages %}
+        <div class="{% if user.is_authenticated %}mb-6{% else %}absolute top-4 left-1/2 -translate-x-1/2 w-[min(92vw,720px)] z-50{% endif %}">
+          {% for message in messages %}
+            <div class="mb-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-soft">
+              <div class="font-semibold text-slate-900">{{ message.tags|default:"info"|capfirst }}</div>
+              <div class="text-slate-600 mt-1">{{ message }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
-<div class="container py-4">
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
+      {% block content %}{% endblock %}
+    </main>
 
-  {% block content %}{% endblock %}
-</div>
+    {% if user.is_authenticated %}
+      <footer class="mt-10 border-t border-slate-200 bg-white">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 text-sm text-slate-500 flex items-center justify-between">
+          <span>© {% now "Y" %} Inventario Joyas</span>
+          <span class="hidden sm:inline">Sistema interno</span>
+        </div>
+      </footer>
+    {% endif %}
 
-</body>
+    {% block scripts %}{% endblock %}
+
+    <script>
+      // Dropdowns (desktop)
+      (function () {
+        const buttons = document.querySelectorAll(".nav-dd-btn");
+        const menus = document.querySelectorAll(".nav-dd");
+
+        function closeAll() {
+          menus.forEach(m => m.classList.add("hidden"));
+        }
+
+        buttons.forEach(btn => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute("data-menu");
+            const menu = document.getElementById(id);
+            const isHidden = menu.classList.contains("hidden");
+            closeAll();
+            if (isHidden) menu.classList.remove("hidden");
+          });
+        });
+
+        document.addEventListener("click", closeAll);
+      })();
+
+      // Mobile menu
+      (function () {
+        const btn = document.getElementById("mobileBtn");
+        const menu = document.getElementById("mobileMenu");
+        if (!btn || !menu) return;
+        btn.addEventListener("click", () => menu.classList.toggle("hidden"));
+      })();
+    </script>
+  </body>
 </html>
+
+<style>
+  input, select, textarea {
+    border: 1px solid rgb(226 232 240);
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    width: 100%;
+    font-size: 0.875rem;
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgb(15 23 42 / 0.10); }
+</style>
