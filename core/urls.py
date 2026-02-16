@@ -16,7 +16,6 @@ urlpatterns = [
     path("compra/registrar/", views.compra_create, name="compra_create"),
     path("compra/<int:pk>/editar/", views.compra_update, name="compra_update"),
     path("compra/<int:pk>/eliminar/", views.compra_delete, name="compra_delete"),
-    path("compra/<int:pk>/anular/", views.compra_delete, name="compra_anular"),
 
     # proveedores
     path("proveedores/", views.proveedor_list, name="proveedor_list"),
