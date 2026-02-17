@@ -1,8 +1,8 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Sum, F
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, F, Q, IntegerField, DecimalField, Value
+from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models.deletion import ProtectedError
@@ -179,7 +179,12 @@ def inventario(request):
     tipo_id = (request.GET.get("tipo") or "").strip()
     solo_stock = request.GET.get("solo_stock") == "on"
 
-    productos = Producto.objects.select_related("proveedor", "tipo").all().order_by("nombre")
+    productos = (
+        Producto.objects
+        .select_related("proveedor", "tipo")
+        .all()
+        .order_by("nombre")
+    )
 
     if q:
         productos = productos.filter(nombre__icontains=q)
@@ -188,18 +193,62 @@ def inventario(request):
     if tipo_id:
         productos = productos.filter(tipo_id=tipo_id)
 
-    # filtrar por stock en python si stock es @property
-    productos_list = list(productos)
+    # ----------------------------
+    # STOCK = SUM(compras IN no anuladas) - SUM(ventas)
+    # (OJO: related_name en models.py es movimientos / ventas)
+    # ----------------------------
+    total_in = Coalesce(
+        Sum(
+            "movimientos__cantidad",
+            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
+        ),
+        Value(0),
+        output_field=IntegerField(),
+    )
+
+    total_out = Coalesce(
+        Sum("ventas__cantidad"),
+        Value(0),
+        output_field=IntegerField(),
+    )
+
+    # ----------------------------
+    # COSTO PROM = SUM(IN cantidad * precio_unitario) / SUM(IN cantidad)
+    # ----------------------------
+    total_cost_in = Coalesce(
+        Sum(
+            F("movimientos__cantidad") * F("movimientos__precio_unitario"),
+            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
+            output_field=DecimalField(max_digits=18, decimal_places=2),
+        ),
+        Value(0),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
+
+    productos = productos.annotate(
+        _total_in=total_in,
+        _total_out=total_out,
+    ).annotate(
+        stock=F("_total_in") - F("_total_out"),
+        costo_prom=total_cost_in / NullIf(F("_total_in"), 0),
+    )
+
     if solo_stock:
-        productos_list = [p for p in productos_list if getattr(p, "stock", 0) > 0]
+        productos = productos.filter(stock__gt=0)
 
     context = {
-        "productos": productos_list,
+        "productos": productos,
         "proveedores": Proveedor.objects.all().order_by("nombre"),
         "tipos": TipoJoya.objects.all().order_by("nombre"),
-        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id, "solo_stock": solo_stock},
+        "filters": {
+            "q": q,
+            "proveedor": proveedor_id,
+            "tipo": tipo_id,
+            "solo_stock": solo_stock
+        },
     }
     return render(request, "core/inventario.html", context)
+
 
 
 # =========================
