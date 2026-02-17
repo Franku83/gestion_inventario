@@ -2,42 +2,52 @@
 {% block title %}Inicio{% endblock %}
 
 {% block content %}
-  <div class="card">
-    <h2>Inventario - Resumen</h2>
-    <p class="muted">Atajos: crea productos, registra compras y ventas.</p>
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+    <h1 class="text-2xl font-semibold text-slate-900">Inventario Joyas</h1>
+    <p class="text-sm text-slate-500 mt-1">Accesos rápidos (visual). Si alguna opción no existe aún, la dejamos como placeholder.</p>
 
-    <div class="row">
-      <a class="btn" href="{% url 'producto_create' %}">+ Nuevo producto</a>
-      <a class="btn" href="{% url 'proveedor_create' %}">+ Nuevo proveedor</a>
-      <a class="btn" href="{% url 'tipo_create' %}">+ Nuevo tipo</a>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+      <a href="{% url 'dashboard' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Panel</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Dashboard</p>
+      </a>
+
+      <a href="{% url 'inventario' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Stock</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Inventario</p>
+      </a>
+
+      <a href="{% url 'compra_list' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Entradas</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Compras</p>
+      </a>
+
+      <a href="{% url 'venta_create' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Salidas</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Registrar venta</p>
+      </a>
+
+      <a href="{% url 'deudas_list' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Cobros</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Deudas</p>
+      </a>
+
+      <a href="{% url 'proveedor_list' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Catálogo</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Proveedores</p>
+      </a>
+
+      <a href="{% url 'tipo_list' %}" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Catálogo</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Tipos</p>
+      </a>
+
+      <a href="#" class="group rounded-2xl border border-slate-200 p-5 hover:bg-slate-50">
+        <p class="text-sm text-slate-500">Pendiente</p>
+        <p class="text-lg font-semibold text-slate-900 mt-1 group-hover:underline">Productos (placeholder)</p>
+      </a>
     </div>
   </div>
-
-  <br>
-
-  <div class="card">
-    <h3>Últimos productos</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Proveedor</th>
-          <th>Tipo</th>
-          <th>Stock</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in productos %}
-          <tr>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.proveedor.nombre }}</td>
-            <td>{{ p.tipo.nombre }}</td>
-            <td>{{ p.stock }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4" class="muted">No hay productos aún.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+</div>
 {% endblock %}

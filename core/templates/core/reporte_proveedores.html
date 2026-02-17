@@ -2,27 +2,35 @@
 {% block title %}Reporte proveedores{% endblock %}
 
 {% block content %}
-  <div class="card">
-    <h2>Ranking: vendidos por proveedor</h2>
-    <p class="muted">Suma total de cantidades vendidas (salidas).</p>
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <h1 class="text-xl font-semibold text-slate-900">Reporte de proveedores</h1>
+  <p class="text-sm text-slate-500 mt-1">Resumen de compras por proveedor (vista).</p>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Proveedor</th>
-          <th>Unidades vendidas</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in data %}
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm mt-5 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-slate-600">
           <tr>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.vendidos }}</td>
+            <th class="text-left font-semibold px-4 py-3">Proveedor</th>
+            <th class="text-right font-semibold px-4 py-3">Compras</th>
+            <th class="text-right font-semibold px-4 py-3">Total</th>
           </tr>
-        {% empty %}
-          <tr><td colspan="2" class="muted">No hay datos.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in rows %}
+          <tr class="hover:bg-slate-50/60">
+            <td class="px-4 py-3 text-slate-900 font-medium">{{ r.proveedor }}</td>
+            <td class="px-4 py-3 text-right text-slate-700">{{ r.cantidad }}</td>
+            <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ r.total }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="3" class="px-4 py-8 text-center text-slate-500">No hay datos para el reporte.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
+</div>
 {% endblock %}

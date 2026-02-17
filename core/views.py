@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Sum, F
-from django.db.models.functions import Coalesce
+from django.db.models import Sum, F, Q, IntegerField, DecimalField, Value
+from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models.deletion import ProtectedError
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
@@ -34,6 +35,7 @@ from django.db.models import Count
 from decimal import Decimal
 from core.services import obtener_usd_bs_rate  # asegúrate que existe
 
+@login_required
 def dashboard(request):
     # ---------- Tasa USD -> Bs ----------
     try:
@@ -170,13 +172,19 @@ def dashboard(request):
 
     return render(request, "core/dashboard.html", context)
 
+@login_required
 def inventario(request):
     q = (request.GET.get("q") or "").strip()
     proveedor_id = (request.GET.get("proveedor") or "").strip()
     tipo_id = (request.GET.get("tipo") or "").strip()
     solo_stock = request.GET.get("solo_stock") == "on"
 
-    productos = Producto.objects.select_related("proveedor", "tipo").all().order_by("nombre")
+    productos = (
+        Producto.objects
+        .select_related("proveedor", "tipo")
+        .all()
+        .order_by("nombre")
+    )
 
     if q:
         productos = productos.filter(nombre__icontains=q)
@@ -185,29 +193,74 @@ def inventario(request):
     if tipo_id:
         productos = productos.filter(tipo_id=tipo_id)
 
-    # filtrar por stock en python si stock es @property
-    productos_list = list(productos)
+    # ----------------------------
+    # STOCK = SUM(compras IN no anuladas) - SUM(ventas)
+    # (OJO: related_name en models.py es movimientos / ventas)
+    # ----------------------------
+    total_in = Coalesce(
+        Sum(
+            "movimientos__cantidad",
+            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
+        ),
+        Value(0),
+        output_field=IntegerField(),
+    )
+
+    total_out = Coalesce(
+        Sum("ventas__cantidad"),
+        Value(0),
+        output_field=IntegerField(),
+    )
+
+    # ----------------------------
+    # COSTO PROM = SUM(IN cantidad * precio_unitario) / SUM(IN cantidad)
+    # ----------------------------
+    total_cost_in = Coalesce(
+        Sum(
+            F("movimientos__cantidad") * F("movimientos__precio_unitario"),
+            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
+            output_field=DecimalField(max_digits=18, decimal_places=2),
+        ),
+        Value(0),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
+
+    productos = productos.annotate(
+        _total_in=total_in,
+        _total_out=total_out,
+    ).annotate(
+        stock=F("_total_in") - F("_total_out"),
+        costo_prom=total_cost_in / NullIf(F("_total_in"), 0),
+    )
+
     if solo_stock:
-        productos_list = [p for p in productos_list if getattr(p, "stock", 0) > 0]
+        productos = productos.filter(stock__gt=0)
 
     context = {
-        "productos": productos_list,
+        "productos": productos,
         "proveedores": Proveedor.objects.all().order_by("nombre"),
         "tipos": TipoJoya.objects.all().order_by("nombre"),
-        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id, "solo_stock": solo_stock},
+        "filters": {
+            "q": q,
+            "proveedor": proveedor_id,
+            "tipo": tipo_id,
+            "solo_stock": solo_stock
+        },
     }
     return render(request, "core/inventario.html", context)
+
 
 
 # =========================
 # Proveedores CRUD
 # =========================
 
+@login_required
 def proveedor_list(request):
     proveedores = Proveedor.objects.all().order_by("nombre")
     return render(request, "core/proveedor_list.html", {"proveedores": proveedores})
 
-
+@login_required
 def proveedor_create(request):
     if request.method == "POST":
         form = ProveedorForm(request.POST)
@@ -219,7 +272,7 @@ def proveedor_create(request):
         form = ProveedorForm()
     return render(request, "core/form.html", {"form": form, "title": "Crear proveedor"})
 
-
+@login_required
 def proveedor_update(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
     if request.method == "POST":
@@ -232,7 +285,7 @@ def proveedor_update(request, pk):
         form = ProveedorForm(instance=proveedor)
     return render(request, "core/form.html", {"form": form, "title": "Editar proveedor"})
 
-
+@login_required
 def proveedor_delete(request, pk):
     proveedor = get_object_or_404(Proveedor, pk=pk)
 
@@ -260,11 +313,13 @@ def proveedor_delete(request, pk):
 # Tipos CRUD
 # =========================
 
+@login_required
 def tipo_list(request):
     tipos = TipoJoya.objects.all().order_by("nombre")
     return render(request, "core/tipo_list.html", {"tipos": tipos})
 
 
+@login_required
 def tipo_create(request):
     if request.method == "POST":
         form = TipoJoyaForm(request.POST)
@@ -276,7 +331,7 @@ def tipo_create(request):
         form = TipoJoyaForm()
     return render(request, "core/form.html", {"form": form, "title": "Crear tipo"})
 
-
+@login_required
 def tipo_update(request, pk):
     tipo = get_object_or_404(TipoJoya, pk=pk)
     if request.method == "POST":
@@ -289,7 +344,7 @@ def tipo_update(request, pk):
         form = TipoJoyaForm(instance=tipo)
     return render(request, "core/form.html", {"form": form, "title": "Editar tipo"})
 
-
+@login_required
 def tipo_delete(request, pk):
     tipo = get_object_or_404(TipoJoya, pk=pk)
     if request.method == "POST":
@@ -303,11 +358,13 @@ def tipo_delete(request, pk):
 # Productos CRUD (opcional)
 # =========================
 
+@login_required
 def producto_list(request):
     productos = Producto.objects.select_related("proveedor", "tipo").all().order_by("nombre")
     return render(request, "core/producto_list.html", {"productos": productos})
 
 
+@login_required
 def producto_create(request):
     if request.method == "POST":
         form = ProductoForm(request.POST)
@@ -320,6 +377,8 @@ def producto_create(request):
     return render(request, "core/form.html", {"form": form, "title": "Crear producto"})
 
 
+@login_required
+@require_POST
 def producto_update(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
@@ -332,7 +391,8 @@ def producto_update(request, pk):
         form = ProductoForm(instance=producto)
     return render(request, "core/form.html", {"form": form, "title": "Editar producto"})
 
-
+@login_required
+@require_POST
 def producto_delete(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
 
@@ -359,6 +419,7 @@ def producto_delete(request, pk):
 # Compras (IN) - Unificada + Edit/Delete/List
 # =========================
 
+@login_required
 def compra_create(request):
     if request.method == "POST":
         form = CompraUnificadaForm(request.POST)
@@ -371,7 +432,7 @@ def compra_create(request):
 
     return render(request, "core/compra_unificada.html", {"form": form})
 
-
+@login_required
 def compra_list(request):
     q = (request.GET.get("q") or "").strip()
 
@@ -388,7 +449,8 @@ def compra_list(request):
 
     return render(request, "core/compra_list.html", {"compras": compras, "q": q})
 
-
+@login_required
+@require_POST
 def compra_update(request, pk):
     compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
 
@@ -403,7 +465,8 @@ def compra_update(request, pk):
 
     return render(request, "core/form.html", {"form": form, "title": "Editar compra"})
 
-
+@login_required
+@require_POST
 def compra_delete(request, pk):
     compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
 
@@ -414,6 +477,7 @@ def compra_delete(request, pk):
 
     return render(request, "core/confirm_delete.html", {"obj": compra, "title": "Eliminar compra"})
 
+@login_required
 @require_POST
 def compra_anular(request, pk):
     compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
@@ -427,6 +491,7 @@ def compra_anular(request, pk):
 # Ventas + Deudas + Pagos
 # =========================
 
+@login_required
 def venta_create(request):
     if request.method == "POST":
         form = VentaForm(request.POST)
@@ -445,7 +510,7 @@ def venta_create(request):
 
     return render(request, "core/venta_form.html", {"form": form})
 
-
+@login_required
 def deudas_list(request):
     # Ventas con deuda > 0 (calculado)
     ventas = Venta.objects.select_related("producto", "producto__proveedor").all().order_by("-fecha")
@@ -462,7 +527,8 @@ def deudas_list(request):
 
     return render(request, "core/deudas_list.html", {"ventas": con_deuda})
 
-
+@login_required
+@require_POST
 def venta_detalle(request, pk):
     venta = get_object_or_404(Venta, pk=pk)
     pagos = PagoVenta.objects.filter(venta=venta).order_by("-fecha")
@@ -479,7 +545,8 @@ def venta_detalle(request, pk):
         "deuda": deuda,
     })
 
-
+@login_required
+@require_POST
 def pago_create(request, venta_id):
     venta = get_object_or_404(Venta, pk=venta_id)
 
@@ -496,7 +563,8 @@ def pago_create(request, venta_id):
 
     return render(request, "core/form.html", {"form": form, "title": "Registrar pago"})
 
-
+@login_required
+@require_POST
 def pago_delete(request, pk):
     pago = get_object_or_404(PagoVenta, pk=pk)
     venta_id = pago.venta_id

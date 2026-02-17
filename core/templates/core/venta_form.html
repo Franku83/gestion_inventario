@@ -1,126 +1,78 @@
 {% extends "core/base.html" %}
-{% load static %}
+{% block title %}Registrar venta{% endblock %}
 
 {% block content %}
-<div class="container py-4" style="max-width: 980px;">
-  <div class="row justify-content-center">
-    <div class="col-12">
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm">
+    <div class="p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-semibold text-slate-900">Registrar venta</h1>
+          <p class="text-sm text-slate-500 mt-1">Selecciona un producto y completa los datos.</p>
+        </div>
+        <div class="text-xs text-slate-400">Tailwind UI</div>
+      </div>
 
-      <div class="card shadow-sm">
-        <div class="card-header bg-white">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <h3 class="mb-0">Registrar venta</h3>
-              <small class="text-muted">Completa los datos y guarda la venta.</small>
-            </div>
+      <form method="post" class="mt-6 space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Producto</label>
+            {{ form.producto }}
+            {% if form.producto.errors %}<p class="text-sm text-red-600 mt-1">{{ form.producto.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Cantidad</label>
+            {{ form.cantidad }}
+            {% if form.cantidad.errors %}<p class="text-sm text-red-600 mt-1">{{ form.cantidad.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Precio unitario</label>
+            {{ form.precio_unitario }}
+            {% if form.precio_unitario.errors %}<p class="text-sm text-red-600 mt-1">{{ form.precio_unitario.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+              {{ form.a_plazos }}
+              A plazos
+            </label>
+            {% if form.a_plazos.errors %}<p class="text-sm text-red-600 mt-1">{{ form.a_plazos.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Nota</label>
+            {{ form.nota }}
+            {% if form.nota.errors %}<p class="text-sm text-red-600 mt-1">{{ form.nota.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-slate-700 mb-1">Pago inicial</label>
+            {{ form.pago_inicial }}
+            {% if form.pago_inicial.errors %}<p class="text-sm text-red-600 mt-1">{{ form.pago_inicial.errors|striptags }}</p>{% endif %}
           </div>
         </div>
 
-        <div class="card-body">
-          {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-              {{ form.non_field_errors }}
-            </div>
-          {% endif %}
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
 
-          <form method="post" novalidate>
-            {% csrf_token %}
-
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">Producto</label>
-                {{ form.producto }}
-                {% if form.producto.errors %}
-                  <div class="invalid-feedback d-block">{{ form.producto.errors|striptags }}</div>
-                {% endif %}
-              </div>
-
-              <div class="col-md-4">
-                <label class="form-label fw-semibold">Cantidad</label>
-                {{ form.cantidad }}
-                {% if form.cantidad.errors %}
-                  <div class="invalid-feedback d-block">{{ form.cantidad.errors|striptags }}</div>
-                {% endif %}
-              </div>
-
-              <div class="col-md-4">
-                <label class="form-label fw-semibold">Precio unitario</label>
-                <div class="input-group">
-                  <span class="input-group-text">$</span>
-                  {{ form.precio_unitario }}
-                </div>
-                {% if form.precio_unitario.errors %}
-                  <div class="invalid-feedback d-block">{{ form.precio_unitario.errors|striptags }}</div>
-                {% endif %}
-              </div>
-
-              <div class="col-md-4 d-flex align-items-end">
-                <div class="form-check">
-                  {{ form.a_plazos }}
-                  <label class="form-check-label fw-semibold">A plazos</label>
-                </div>
-                {% if form.a_plazos.errors %}
-                  <div class="invalid-feedback d-block">{{ form.a_plazos.errors|striptags }}</div>
-                {% endif %}
-              </div>
-
-              <div class="col-12">
-                <label class="form-label fw-semibold">Nota</label>
-                {{ form.nota }}
-                {% if form.nota.errors %}
-                  <div class="invalid-feedback d-block">{{ form.nota.errors|striptags }}</div>
-                {% endif %}
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">Pago inicial</label>
-                <div class="input-group">
-                  <span class="input-group-text">$</span>
-                  {{ form.pago_inicial }}
-                </div>
-                <small class="text-muted">Si es “A plazos”, esto se descuenta de la deuda.</small>
-                {% if form.pago_inicial.errors %}
-                  <div class="invalid-feedback d-block">{{ form.pago_inicial.errors|striptags }}</div>
-                {% endif %}
-              </div>
-            </div>
-
-            <hr class="my-4">
-
-            <div class="d-flex gap-2 justify-content-end">
-              <!-- FIX: antes decía venta_list y no existe -->
-              <a class="btn btn-outline-secondary" href="{% url 'deudas_list' %}">
-                Cancelar
-              </a>
-              <button type="submit" class="btn btn-success px-4">
-                Guardar venta
-              </button>
-            </div>
-          </form>
+        <div class="flex items-center justify-between pt-2">
+          <a href="{% url 'dashboard' %}"
+             class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Cancelar
+          </a>
+          <button type="submit"
+                  class="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            Guardar venta
+          </button>
         </div>
-      </div>
-
-      <script>
-        // Aplica estilos Bootstrap sin tocar forms.py
-        (function () {
-          const form = document.querySelector("form");
-          if (!form) return;
-
-          form.querySelectorAll("input, select, textarea").forEach(el => {
-            const type = (el.getAttribute("type") || "").toLowerCase();
-
-            if (type === "checkbox") {
-              el.classList.add("form-check-input");
-            } else {
-              el.classList.add("form-control");
-            }
-          });
-
-          // Que los selects se vean bien
-          form.querySelectorAll("select").forEach(el => el.classList.add("form-select"));
-        })();
-      </script>
-
+      </form>
     </div>
   </div>
 </div>

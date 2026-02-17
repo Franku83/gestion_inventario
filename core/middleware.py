@@ -1,37 +1,36 @@
-from __future__ import annotations
-
-from django.conf import settings
 from django.shortcuts import redirect
-
+from django.urls import reverse
+from django.conf import settings
 
 class LoginRequiredMiddleware:
     """
-    Bloquea toda la app detrás del login.
+    Fuerza login en todo excepto:
+    - login/logout
+    - admin (Django ya protege)
+    - staticfiles
     """
-
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        user = getattr(request, "user", None)
-        if user is not None and user.is_authenticated:
+        path = request.path
+
+        # Permitir estáticos
+        if path.startswith(getattr(settings, "STATIC_URL", "/static/")):
             return self.get_response(request)
 
-        path = request.path_info or "/"
-
-        login_url = getattr(settings, "LOGIN_URL", "/accounts/login/")
-        allowed_prefixes = [
-            login_url.rstrip("/") + "/",
-            "/accounts/logout/",
-            "/admin/",
-            "/static/",
-            "/media/",
-        ]
-
-        if any(path.startswith(p) for p in allowed_prefixes):
+        # Permitir admin (Django maneja auth ahí)
+        if path.startswith("/admin/"):
             return self.get_response(request)
 
-        if path == login_url:
+        # Permitir login/logout
+        login_url = reverse("login")
+        logout_url = reverse("logout")
+        if path.startswith(login_url) or path.startswith(logout_url):
             return self.get_response(request)
 
-        return redirect(f"{login_url}?next={path}")
+        # Si no está logeado, redirigir
+        if not request.user.is_authenticated:
+            return redirect(f"{login_url}?next={request.get_full_path()}")
+
+        return self.get_response(request)
