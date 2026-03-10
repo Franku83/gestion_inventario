@@ -378,7 +378,6 @@ def producto_create(request):
 
 
 @login_required
-@require_POST
 def producto_update(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
     if request.method == "POST":
@@ -392,7 +391,6 @@ def producto_update(request, pk):
     return render(request, "core/form.html", {"form": form, "title": "Editar producto"})
 
 @login_required
-@require_POST
 def producto_delete(request, pk):
     producto = get_object_or_404(Producto, pk=pk)
 
@@ -450,7 +448,6 @@ def compra_list(request):
     return render(request, "core/compra_list.html", {"compras": compras, "q": q})
 
 @login_required
-@require_POST
 def compra_update(request, pk):
     compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
 
@@ -466,7 +463,6 @@ def compra_update(request, pk):
     return render(request, "core/form.html", {"form": form, "title": "Editar compra"})
 
 @login_required
-@require_POST
 def compra_delete(request, pk):
     compra = get_object_or_404(Movimiento, pk=pk, tipo="IN")
 
@@ -528,7 +524,6 @@ def deudas_list(request):
     return render(request, "core/deudas_list.html", {"ventas": con_deuda})
 
 @login_required
-@require_POST
 def venta_detalle(request, pk):
     venta = get_object_or_404(Venta, pk=pk)
     pagos = PagoVenta.objects.filter(venta=venta).order_by("-fecha")
@@ -546,7 +541,6 @@ def venta_detalle(request, pk):
     })
 
 @login_required
-@require_POST
 def pago_create(request, venta_id):
     venta = get_object_or_404(Venta, pk=venta_id)
 
@@ -564,7 +558,6 @@ def pago_create(request, venta_id):
     return render(request, "core/form.html", {"form": form, "title": "Registrar pago"})
 
 @login_required
-@require_POST
 def pago_delete(request, pk):
     pago = get_object_or_404(PagoVenta, pk=pk)
     venta_id = pago.venta_id
