@@ -10,12 +10,16 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only")
 DEBUG = os.environ.get("DEBUG", "1") == "1"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
-_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("CSRF_TRUSTED_ORIGINS") else []
+raw_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
 CSRF_TRUSTED_ORIGINS = []
-for origin in _origins:
-    if origin:
-        CSRF_TRUSTED_ORIGINS.append(f"https://{origin}")
-        CSRF_TRUSTED_ORIGINS.append(f"http://{origin}")
+for origin in raw_origins:
+    if origin.strip():
+        origin = origin.strip()
+        if not origin.startswith(("http://", "https://")):
+            CSRF_TRUSTED_ORIGINS.append(f"https://{origin}")
+            CSRF_TRUSTED_ORIGINS.append(f"http://{origin}")
+        else:
+            CSRF_TRUSTED_ORIGINS.append(origin)
 
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
