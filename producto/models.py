@@ -16,8 +16,10 @@ class Producto(models.Model):
 
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     precio_venta_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    precio_sugerido_ia = models.DecimalField(max_digits=12, decimal_places=2, null=True)
 
     activo = models.BooleanField(default=True)
+    descripcion_ia = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

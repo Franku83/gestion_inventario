@@ -13,7 +13,98 @@ from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
-from core.services import obtener_usd_bs_rate
+from core.services import (
+    obtener_usd_bs_rate, 
+    generar_descripcion_ia, 
+    asistente_inventario_ia,
+    sugerir_precio_ia,
+    analizar_riesgo_cobro_ia,
+    generar_resumen_negocio_ia
+)
+
+@login_required
+@require_POST
+def sugerir_precio_view(request, pk):
+    producto = get_object_or_404(Producto, pk=pk)
+    precio = sugerir_precio_ia(producto)
+    if precio:
+        producto.precio_sugerido_ia = precio
+        producto.save()
+        messages.success(request, f"Precio sugerido generado: {precio}")
+    else:
+        messages.error(request, "No se pudo generar la sugerencia de precio.")
+    return redirect("inventario")
+
+@login_required
+@require_POST
+def analizar_riesgo_view(request, pk):
+    venta = get_object_or_404(Venta, pk=pk)
+    analisis = analizar_riesgo_cobro_ia(venta)
+    venta.analisis_riesgo_ia = analisis
+    venta.save()
+    messages.success(request, "Análisis de riesgo completado.")
+    return redirect("venta_detalle", pk=venta.id)
+
+@login_required
+@require_POST
+def generar_resumen_view(request):
+    try:
+        stats = obtener_estadisticas_inventario()
+        ventas_mes = Venta.objects.filter(fecha__month=Decimal("3")).aggregate(s=Sum(F("cantidad") * F("precio_unitario")))["s"] or Decimal("0.00")
+        
+        pagos_map = {
+            r["venta_id"]: Decimal(str(r["pagado"] or "0.00"))
+            for r in (
+                PagoVenta.objects
+                .values("venta_id")
+                .annotate(pagado=Coalesce(Sum("monto"), Decimal("0.00")))
+            )
+        }
+        total_deudas = Decimal("0.00")
+        for v in Venta.objects.filter(a_plazos=True):
+            t = v.precio_unitario * v.cantidad
+            p = pagos_map.get(v.id, Decimal("0.00"))
+            d = t - p
+            if d > 0:
+                total_deudas += d
+
+        datos = {
+            "valor_inventario": stats["valor_stock_usd"],
+            "total_deudas": total_deudas,
+            "ventas_mes": ventas_mes
+        }
+        resumen = generar_resumen_negocio_ia(datos)
+        return render(request, "core/dashboard.html", {"resumen_negocio": resumen})
+    except Exception as e:
+        messages.error(request, f"Error al generar resumen: {e}")
+        return redirect("dashboard")
+
+@login_required
+@require_POST
+def chat_inventario_view(request):
+    prompt = request.POST.get("prompt", "")
+    try:
+        respuesta = asistente_inventario_ia(prompt)
+        return render(request, "core/dashboard.html", {"respuesta_asistente": respuesta})
+    except Exception as e:
+        messages.error(request, f"Error del asistente: {e}")
+        return redirect("dashboard")
+
+@login_required
+@require_POST
+def generar_descripcion_view(request, pk):
+    producto = get_object_or_404(Producto, pk=pk)
+    if producto.descripcion_ia:
+        messages.info(request, "El producto ya tiene una descripción generada.")
+        return redirect("inventario")
+    try:
+        descripcion = generar_descripcion_ia(producto)
+        producto.descripcion_ia = descripcion
+        producto.save()
+        messages.success(request, "Descripción generada con IA.")
+    except Exception as e:
+        messages.error(request, f"Error al generar descripción: {e}")
+    return redirect("inventario")
 
 from .forms import (
     ProveedorForm,

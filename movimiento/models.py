@@ -44,6 +44,7 @@ class Venta(models.Model):
     a_plazos = models.BooleanField(default=False)
     fecha = models.DateTimeField(auto_now_add=True)
     nota = models.CharField(max_length=255, blank=True)
+    analisis_riesgo_ia = models.TextField(null=True)
 
     class Meta:
         ordering = ["-fecha"]

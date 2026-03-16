@@ -19,15 +19,31 @@
             <th class="text-left font-semibold px-4 py-3">Proveedor</th>
             <th class="text-right font-semibold px-4 py-3">Stock</th>
             <th class="text-right font-semibold px-4 py-3">Costo prom.</th>
+            <th class="text-center font-semibold px-4 py-3">IA</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for p in productos %}
           <tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-3 text-slate-900 font-medium">{{ p.nombre }}</td>
+            <td class="px-4 py-3 text-slate-900 font-medium">
+              {{ p.nombre }}
+              {% if p.descripcion_ia %}
+                <div class="text-xs text-slate-500 font-normal mt-1 italic">{{ p.descripcion_ia|truncatechars:100 }}</div>
+              {% endif %}
+            </td>
             <td class="px-4 py-3 text-slate-700">{{ p.proveedor.nombre }}</td>
             <td class="px-4 py-3 text-right text-slate-700">{{ p.stock }}</td>
             <td class="px-4 py-3 text-right text-slate-700">{{ p.costo_promedio }}</td>
+            <td class="px-4 py-3 text-center">
+              <form method="post" action="{% url 'generar_descripcion_ia' p.id %}">
+                {% csrf_token %}
+                <button type="submit" class="text-indigo-600 hover:text-indigo-900 title="Generar descripción con IA"">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </button>
+              </form>
+            </td>
           </tr>
           {% empty %}
           <tr>

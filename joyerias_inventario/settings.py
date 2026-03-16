@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +32,15 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only")
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
-CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("CSRF_TRUSTED_ORIGINS") else []
+_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if os.environ.get("CSRF_TRUSTED_ORIGINS") else []
+CSRF_TRUSTED_ORIGINS = []
+for origin in _origins:
+    if origin:
+        CSRF_TRUSTED_ORIGINS.append(f"https://{origin}")
+        CSRF_TRUSTED_ORIGINS.append(f"http://{origin}")
+
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
@@ -165,5 +174,10 @@ if not DEBUG:
     # Seguridad extra
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "same-origin"
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
+
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 

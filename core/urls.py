@@ -24,6 +24,13 @@ urlpatterns = [
     path("tipos/<int:pk>/editar/", views.tipo_update, name="tipo_update"),
     path("tipos/<int:pk>/eliminar/", views.tipo_delete, name="tipo_delete"),
 
+    # IA
+    path("producto/<int:pk>/generar-ia/", views.generar_descripcion_view, name="generar_descripcion_ia"),
+    path("producto/<int:pk>/sugerir-precio/", views.sugerir_precio_view, name="sugerir_precio_ia"),
+    path("venta/<int:pk>/analizar-riesgo/", views.analizar_riesgo_view, name="analizar_riesgo_ia"),
+    path("dashboard/resumen-ia/", views.generar_resumen_view, name="generar_resumen_ia"),
+    path("asistente/consultar/", views.chat_inventario_view, name="asistente_ia"),
+
     # ventas / deudas / pagos
     path("venta/registrar/", views.venta_create, name="venta_create"),
     path("deudas/", views.deudas_list, name="deudas_list"),
