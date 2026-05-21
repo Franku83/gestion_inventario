@@ -30,7 +30,7 @@ class Movimiento(models.Model):
         return f"{self.get_tipo_display()} - {self.producto} x{self.cantidad}"
     @property
     def total(self):
-        return (self.precio_unitario or Decimal("0.00")) * self.cantidad
+        return (self.precio_unitario or Decimal("0.00")) * (self.cantidad or 0)
 
 class Venta(models.Model):
     cliente = models.CharField(max_length=150, blank=True, default="", verbose_name="Cliente")
@@ -53,12 +53,12 @@ class Venta(models.Model):
 
     @property
     def total(self):
-        return (self.precio_unitario or Decimal("0.00")) * self.cantidad
+        return (self.precio_unitario or Decimal("0.00")) * (self.cantidad or 0)
 
     @property
     def pagado(self):
         # suma de pagos
-        return sum((p.monto for p in self.pagos.all()), Decimal("0.00"))
+        return sum((p.monto or Decimal("0.00") for p in self.pagos.all()), Decimal("0.00"))
 
     @property
     def deuda(self):

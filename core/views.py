@@ -62,7 +62,7 @@ def generar_resumen_view(request):
         }
         total_deudas = Decimal("0.00")
         for v in Venta.objects.filter(a_plazos=True):
-            t = v.precio_unitario * v.cantidad
+            t = (v.precio_unitario or Decimal("0.00")) * (v.cantidad or 0)
             p = pagos_map.get(v.id, Decimal("0.00"))
             d = t - p
             if d > 0:
@@ -626,7 +626,7 @@ def deudas_list(request):
     ventas = Venta.objects.select_related("producto", "producto__proveedor").all().order_by("-fecha")
     con_deuda = []
     for v in ventas:
-        total = (v.precio_unitario or Decimal("0.00")) * v.cantidad
+        total = (v.precio_unitario or Decimal("0.00")) * (v.cantidad or 0)
         pagado = PagoVenta.objects.filter(venta=v).aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
         deuda = total - pagado
         if deuda > 0:
@@ -642,7 +642,7 @@ def venta_detalle(request, pk):
     venta = get_object_or_404(Venta, pk=pk)
     pagos = PagoVenta.objects.filter(venta=venta).order_by("-fecha")
 
-    total = (venta.precio_unitario or Decimal("0.00")) * venta.cantidad
+    total = (venta.precio_unitario or Decimal("0.00")) * (venta.cantidad or 0)
     pagado = pagos.aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
     deuda = total - pagado
 
