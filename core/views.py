@@ -691,22 +691,37 @@ def compra_multiple(request):
         if formset.is_valid():
             movimientos_creados = 0
             for form in formset:
-                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                if not form.cleaned_data or form.cleaned_data.get('DELETE'):
+                    continue
+                cantidad = form.cleaned_data.get('cantidad')
+                if not cantidad:
+                    continue
+                precio_unitario = form.cleaned_data.get('precio_unitario') or Decimal("0.00")
+                nota = form.cleaned_data.get('nota') or ""
+
+                if (form.cleaned_data.get('crear_nuevo') or "").lower() == "true":
+                    producto, _ = Producto.objects.get_or_create(
+                        nombre=form.cleaned_data['nombre'],
+                        proveedor=form.cleaned_data['proveedor'],
+                        tipo=form.cleaned_data['tipo'],
+                        defaults={
+                            'costo_unitario': form.cleaned_data.get('costo_unitario') or Decimal("0.00"),
+                            'precio_venta_unitario': form.cleaned_data.get('precio_venta_unitario') or Decimal("0.00"),
+                        }
+                    )
+                else:
                     producto = form.cleaned_data.get('producto')
-                    cantidad = form.cleaned_data.get('cantidad')
-                    precio_unitario = form.cleaned_data.get('precio_unitario') or Decimal("0.00")
-                    nota = form.cleaned_data.get('nota') or ""
-                    
-                    if producto and cantidad:
-                        Movimiento.objects.create(
-                            tipo="IN",
-                            producto=producto,
-                            cantidad=cantidad,
-                            precio_unitario=precio_unitario,
-                            nota=nota
-                        )
-                        movimientos_creados += 1
-            
+
+                if producto:
+                    Movimiento.objects.create(
+                        tipo="IN",
+                        producto=producto,
+                        cantidad=cantidad,
+                        precio_unitario=precio_unitario,
+                        nota=nota
+                    )
+                    movimientos_creados += 1
+
             if movimientos_creados > 0:
                 messages.success(request, f"Se registraron {movimientos_creados} compras con éxito.")
             else:

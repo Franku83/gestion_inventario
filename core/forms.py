@@ -149,17 +149,57 @@ class PagoVentaForm(forms.ModelForm):
 
 
 class ItemCompraForm(forms.Form):
+    crear_nuevo = forms.CharField(required=False, widget=forms.HiddenInput())
+
+    # Producto existente
     producto = forms.ModelChoiceField(
         queryset=Producto.objects.filter(activo=True).order_by("nombre"),
-        label="Producto"
+        label="Producto existente",
+        required=False,
     )
+
+    # Nuevo producto
+    nombre = forms.CharField(required=False, max_length=140, label="Nombre")
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.all().order_by("nombre"),
+        required=False, label="Proveedor",
+    )
+    tipo = forms.ModelChoiceField(
+        queryset=TipoJoya.objects.all().order_by("nombre"),
+        required=False, label="Tipo",
+    )
+    costo_unitario = forms.DecimalField(
+        required=False, max_digits=12, decimal_places=2,
+        initial=Decimal("0.00"), label="Costo unitario",
+    )
+    precio_venta_unitario = forms.DecimalField(
+        required=False, max_digits=12, decimal_places=2,
+        initial=Decimal("0.00"), label="Precio venta",
+    )
+
+    # Compra
     cantidad = forms.IntegerField(min_value=1, initial=1, label="Cantidad")
-    precio_unitario = forms.DecimalField(max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio unitario")
+    precio_unitario = forms.DecimalField(max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio compra")
     nota = forms.CharField(required=False, max_length=255, label="Nota")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _bootstrapify(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        crear = (cleaned.get("crear_nuevo") or "").lower() == "true"
+        if crear:
+            if not cleaned.get("nombre"):
+                self.add_error("nombre", "Requerido.")
+            if not cleaned.get("proveedor"):
+                self.add_error("proveedor", "Requerido.")
+            if not cleaned.get("tipo"):
+                self.add_error("tipo", "Requerido.")
+        else:
+            if not cleaned.get("producto"):
+                self.add_error("producto", "Selecciona un producto.")
+        return cleaned
 
 CompraMultipleFormSet = forms.formset_factory(ItemCompraForm, extra=1, can_delete=True)
 
