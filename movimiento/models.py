@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+from django.utils import timezone
 
 class Movimiento(models.Model):
     class Tipo(models.TextChoices):
@@ -32,6 +33,7 @@ class Movimiento(models.Model):
         return (self.precio_unitario or Decimal("0.00")) * self.cantidad
 
 class Venta(models.Model):
+    cliente = models.CharField(max_length=150, blank=True, default="", verbose_name="Cliente")
     producto = models.ForeignKey(
         'producto.Producto',
         on_delete=models.PROTECT,
@@ -42,7 +44,7 @@ class Venta(models.Model):
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
     a_plazos = models.BooleanField(default=False)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(default=timezone.now)
     nota = models.CharField(max_length=255, blank=True)
     analisis_riesgo_ia = models.TextField(null=True)
 
@@ -74,7 +76,7 @@ class PagoVenta(models.Model):
         related_name='pagos'
     )
     monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(default=timezone.now)
     nota = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -82,3 +84,4 @@ class PagoVenta(models.Model):
 
     def __str__(self):
         return f"Pago {self.monto} - {self.venta}"
+

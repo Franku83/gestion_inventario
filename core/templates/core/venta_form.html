@@ -17,6 +17,18 @@
         {% csrf_token %}
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Cliente</label>
+            {{ form.cliente }}
+            {% if form.cliente.errors %}<p class="text-sm text-red-600 mt-1">{{ form.cliente.errors|striptags }}</p>{% endif %}
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Fecha de Venta</label>
+            {{ form.fecha }}
+            {% if form.fecha.errors %}<p class="text-sm text-red-600 mt-1">{{ form.fecha.errors|striptags }}</p>{% endif %}
+          </div>
+
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-slate-700 mb-1">Producto</label>
             {{ form.producto }}
@@ -30,7 +42,7 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1">Precio unitario</label>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Precio unitario (Venta)</label>
             {{ form.precio_unitario }}
             {% if form.precio_unitario.errors %}<p class="text-sm text-red-600 mt-1">{{ form.precio_unitario.errors|striptags }}</p>{% endif %}
           </div>
@@ -76,4 +88,30 @@
     </div>
   </div>
 </div>
+
+{{ precios_productos|json_script:"precios-productos-data" }}
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const precios = JSON.parse(document.getElementById("precios-productos-data").textContent);
+    const selectProducto = document.getElementById("id_producto");
+    const inputPrecioUnitario = document.getElementById("id_precio_unitario");
+
+    if (selectProducto && inputPrecioUnitario) {
+      selectProducto.addEventListener("change", function() {
+        const prodId = this.value;
+        if (prodId && precios[prodId] !== undefined) {
+          inputPrecioUnitario.value = precios[prodId];
+        }
+      });
+      // Pre-fill on load if product is selected and price is empty or 0
+      if (selectProducto.value && (!inputPrecioUnitario.value || parseFloat(inputPrecioUnitario.value) === 0)) {
+        const prodId = selectProducto.value;
+        if (precios[prodId] !== undefined) {
+          inputPrecioUnitario.value = precios[prodId];
+        }
+      }
+    }
+  });
+</script>
 {% endblock %}

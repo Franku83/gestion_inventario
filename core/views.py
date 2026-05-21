@@ -114,6 +114,7 @@ from .forms import (
     CompraEditForm,
     VentaForm,
     PagoVentaForm,
+    CompraMultipleFormSet,
 )
 
 
@@ -226,20 +227,33 @@ def dashboard(request):
     except Exception:
         dinero_deuda_usd = Decimal("0.00")
 
+    # ---------- Ganancia estimada (USD) ----------
+    ganancia_usd = Decimal("0.00")
+    try:
+        for v in Venta.objects.select_related("producto").only("cantidad", "precio_unitario", "producto__costo_unitario"):
+            costo = Decimal(str(v.producto.costo_unitario or 0))
+            precio_venta = Decimal(str(v.precio_unitario or 0))
+            ganancia_usd += (precio_venta - costo) * Decimal(v.cantidad)
+    except Exception:
+        ganancia_usd = Decimal("0.00")
+
     # ---------- Conversiones a Bs ----------
     dinero_stock_bs = (dinero_stock_usd * tasa)
     dinero_vendido_bs = (dinero_vendido_usd * tasa)
     dinero_deuda_bs = (dinero_deuda_usd * tasa)
+    ganancia_bs = (ganancia_usd * tasa)
 
     # redondeo bonito
     q = Decimal("0.01")
     dinero_stock_usd = dinero_stock_usd.quantize(q)
     dinero_vendido_usd = dinero_vendido_usd.quantize(q)
     dinero_deuda_usd = dinero_deuda_usd.quantize(q)
+    ganancia_usd = ganancia_usd.quantize(q)
 
     dinero_stock_bs = dinero_stock_bs.quantize(q)
     dinero_vendido_bs = dinero_vendido_bs.quantize(q)
     dinero_deuda_bs = dinero_deuda_bs.quantize(q)
+    ganancia_bs = ganancia_bs.quantize(q)
 
     context = {
         "productos": productos,
@@ -253,6 +267,8 @@ def dashboard(request):
         "dinero_vendido_bs": dinero_vendido_bs,
         "dinero_deuda_usd": dinero_deuda_usd,
         "dinero_deuda_bs": dinero_deuda_bs,
+        "ganancia_usd": ganancia_usd,
+        "ganancia_bs": ganancia_bs,
         "tasa_usd_bs": tasa,
 
         # COMPATIBILIDAD con tu dashboard.html actual (usa dinero_stock, dinero_vendido, dinero_deuda) :contentReference[oaicite:6]{index=6}
@@ -588,14 +604,21 @@ def venta_create(request):
 
             pago_inicial = form.cleaned_data.get("pago_inicial") or Decimal("0.00")
             if pago_inicial > 0:
-                PagoVenta.objects.create(venta=venta, monto=pago_inicial, nota="Pago inicial")
+                PagoVenta.objects.create(venta=venta, monto=pago_inicial, fecha=venta.fecha, nota="Pago inicial")
 
             messages.success(request, "Venta registrada.")
             return redirect("dashboard")
     else:
         form = VentaForm()
 
-    return render(request, "core/venta_form.html", {"form": form})
+    # Pasar precios de venta unitarios de productos activos para auto-completado JS
+    productos = Producto.objects.filter(activo=True)
+    precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
+
+    return render(request, "core/venta_form.html", {
+        "form": form,
+        "precios_productos": precios_productos
+    })
 
 @login_required
 def deudas_list(request):
@@ -607,9 +630,9 @@ def deudas_list(request):
         pagado = PagoVenta.objects.filter(venta=v).aggregate(s=Sum("monto"))["s"] or Decimal("0.00")
         deuda = total - pagado
         if deuda > 0:
-            v._total = total
-            v._pagado = pagado
-            v._deuda = deuda
+            v.total_calc = total
+            v.pagado_calc = pagado
+            v.deuda_calc = deuda
             con_deuda.append(v)
 
     return render(request, "core/deudas_list.html", {"ventas": con_deuda})
@@ -646,7 +669,7 @@ def pago_create(request, venta_id):
     else:
         form = PagoVentaForm()
 
-    return render(request, "core/form.html", {"form": form, "title": "Registrar pago"})
+    return render(request, "core/abono_form.html", {"form": form, "venta": venta})
 
 @login_required
 def pago_delete(request, pk):
@@ -659,3 +682,37 @@ def pago_delete(request, pk):
         return redirect("venta_detalle", pk=venta_id)
 
     return render(request, "core/confirm_delete.html", {"obj": pago, "title": "Eliminar pago"})
+
+
+@login_required
+def compra_multiple(request):
+    if request.method == "POST":
+        formset = CompraMultipleFormSet(request.POST)
+        if formset.is_valid():
+            movimientos_creados = 0
+            for form in formset:
+                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                    producto = form.cleaned_data.get('producto')
+                    cantidad = form.cleaned_data.get('cantidad')
+                    precio_unitario = form.cleaned_data.get('precio_unitario') or Decimal("0.00")
+                    nota = form.cleaned_data.get('nota') or ""
+                    
+                    if producto and cantidad:
+                        Movimiento.objects.create(
+                            tipo="IN",
+                            producto=producto,
+                            cantidad=cantidad,
+                            precio_unitario=precio_unitario,
+                            nota=nota
+                        )
+                        movimientos_creados += 1
+            
+            if movimientos_creados > 0:
+                messages.success(request, f"Se registraron {movimientos_creados} compras con éxito.")
+            else:
+                messages.warning(request, "No se registró ninguna compra.")
+            return redirect("inventario")
+    else:
+        formset = CompraMultipleFormSet()
+
+    return render(request, "core/compra_multiple.html", {"formset": formset})

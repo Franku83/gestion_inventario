@@ -69,16 +69,27 @@ class CompraEditForm(forms.ModelForm):
         return p
 
 
+from django.utils import timezone
+
 class VentaForm(forms.ModelForm):
     pago_inicial = forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=Decimal("0.00"))
 
     class Meta:
         model = Venta
-        fields = ["producto", "cantidad", "precio_unitario", "a_plazos", "nota"]
+        fields = ["cliente", "producto", "cantidad", "precio_unitario", "a_plazos", "fecha", "nota"]
+        widgets = {
+            'fecha': forms.DateTimeInput(
+                format='%Y-%m-%dT%H:%M',
+                attrs={'type': 'datetime-local', 'class': 'form-control'}
+            )
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _bootstrapify(self)
+        if not self.instance.pk:
+            # Poner la hora local actual con formato adecuado para datetime-local
+            self.initial['fecha'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%dT%H:%M')
 
     def clean_precio_unitario(self):
         p = self.cleaned_data.get("precio_unitario")
@@ -106,19 +117,27 @@ class VentaForm(forms.ModelForm):
             salidas = Venta.objects.filter(producto=producto).aggregate(s=Sum("cantidad"))["s"] or 0
             stock = int(entradas) - int(salidas)
 
-        if cantidad > stock:
-            raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
+            if cantidad > stock:
+                raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
         return cleaned
 
 
 class PagoVentaForm(forms.ModelForm):
     class Meta:
         model = PagoVenta
-        fields = ["monto", "nota"]
+        fields = ["monto", "fecha", "nota"]
+        widgets = {
+            'fecha': forms.DateTimeInput(
+                format='%Y-%m-%dT%H:%M',
+                attrs={'type': 'datetime-local', 'class': 'form-control'}
+            )
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _bootstrapify(self)
+        if not self.instance.pk:
+            self.initial['fecha'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%dT%H:%M')
 
     def clean_monto(self):
         m = self.cleaned_data.get("monto")
@@ -127,6 +146,22 @@ class PagoVentaForm(forms.ModelForm):
         if m <= 0:
             raise ValidationError("El monto debe ser mayor que 0.")
         return m
+
+
+class ItemCompraForm(forms.Form):
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        label="Producto"
+    )
+    cantidad = forms.IntegerField(min_value=1, initial=1, label="Cantidad")
+    precio_unitario = forms.DecimalField(max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio unitario")
+    nota = forms.CharField(required=False, max_length=255, label="Nota")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _bootstrapify(self)
+
+CompraMultipleFormSet = forms.formset_factory(ItemCompraForm, extra=1, can_delete=True)
 
 
 class CompraUnificadaForm(forms.Form):

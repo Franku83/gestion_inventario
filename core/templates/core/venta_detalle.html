@@ -1,0 +1,173 @@
+{% extends "core/base.html" %}
+{% block title %}Detalle de Venta{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Detalle de Venta</h1>
+      <p class="text-sm text-slate-500 mt-1">Gestión de la venta, abonos y análisis de riesgo.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="{% url 'deudas_list' %}"
+         class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+        Volver a Deudas
+      </a>
+      {% if deuda > 0 %}
+      <a href="{% url 'pago_create' venta.id %}"
+         class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 shadow-sm transition">
+        Registrar Abono
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Venta</span>
+      <p class="text-3xl font-bold text-slate-900 mt-1">${{ total }} USD</p>
+      <p class="text-xs text-slate-500 mt-1">Cantidad: {{ venta.cantidad }} x ${{ venta.precio_unitario }} USD</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Pagado</span>
+      <p class="text-3xl font-bold text-emerald-600 mt-1">${{ pagado }} USD</p>
+      <p class="text-xs text-slate-500 mt-1">Porcentaje: {% if total > 0 %}{{ pagado|floatformat:2 }} de {{ total }} USD{% else %}0%{% endif %}</p>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm {% if deuda > 0 %}border-amber-200 bg-amber-50/20{% endif %}">
+      <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deuda Pendiente</span>
+      <p class="text-3xl font-bold {% if deuda > 0 %}text-amber-600{% else %}text-slate-900{% endif %} mt-1">${{ deuda }} USD</p>
+      <p class="text-xs text-slate-500 mt-1">Estado: {% if deuda > 0 %}<span class="font-semibold text-amber-700">Con saldo pendiente</span>{% else %}<span class="font-semibold text-emerald-700">Cancelada</span>{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Información General -->
+    <div class="lg:col-span-2 space-y-6">
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+          <h2 class="text-base font-semibold text-slate-900">Información General</h2>
+        </div>
+        <div class="p-6">
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+            <div>
+              <dt class="text-slate-500 font-medium">Cliente</dt>
+              <dd class="text-slate-900 font-semibold mt-1 text-base">{{ venta.cliente|default:"(sin nombre)" }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500 font-medium">Fecha de Venta</dt>
+              <dd class="text-slate-900 mt-1">{{ venta.fecha|date:"Y-m-d H:i" }}</dd>
+            </div>
+            <div class="sm:col-span-2 border-t border-slate-100 pt-4">
+              <dt class="text-slate-500 font-medium">Producto</dt>
+              <dd class="text-slate-900 font-semibold mt-1 text-lg">
+                {{ venta.producto.nombre }}
+                <span class="text-xs font-normal text-slate-500">({{ venta.producto.tipo }})</span>
+              </dd>
+            </div>
+            <div class="border-t border-slate-100 pt-4">
+              <dt class="text-slate-500 font-medium">Proveedor del Producto</dt>
+              <dd class="text-slate-900 mt-1">{{ venta.producto.proveedor.nombre }}</dd>
+            </div>
+            <div class="border-t border-slate-100 pt-4">
+              <dt class="text-slate-500 font-medium">Modalidad</dt>
+              <dd class="text-slate-900 mt-1">
+                {% if venta.a_plazos %}
+                <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/10">A plazos</span>
+                {% else %}
+                <span class="inline-flex items-center rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/10">Contado</span>
+                {% endif %}
+              </dd>
+            </div>
+            {% if venta.nota %}
+            <div class="sm:col-span-2 border-t border-slate-100 pt-4">
+              <dt class="text-slate-500 font-medium">Nota / Comentarios</dt>
+              <dd class="text-slate-700 mt-1 italic">"{{ venta.nota }}"</dd>
+            </div>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+
+      <!-- Historial de Abonos / Pagos -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+          <h2 class="text-base font-semibold text-slate-900">Historial de Abonos</h2>
+          <span class="text-xs text-slate-500">{{ pagos.count }} pago(s) registrado(s)</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr>
+                <th class="text-left font-semibold px-6 py-3">Fecha del Pago</th>
+                <th class="text-left font-semibold px-6 py-3">Nota</th>
+                <th class="text-right font-semibold px-6 py-3">Monto</th>
+                <th class="text-center font-semibold px-6 py-3">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for p in pagos %}
+              <tr class="hover:bg-slate-50/60">
+                <td class="px-6 py-4 text-slate-700 whitespace-nowrap">{{ p.fecha|date:"Y-m-d H:i" }}</td>
+                <td class="px-6 py-4 text-slate-500">{{ p.nota|default:"-" }}</td>
+                <td class="px-6 py-4 text-right text-slate-900 font-semibold">${{ p.monto }} USD</td>
+                <td class="px-6 py-4 text-center">
+                  <form method="post" action="{% url 'pago_delete' p.id %}" onsubmit="return confirm('¿Seguro que deseas eliminar este pago?');">
+                    {% csrf_token %}
+                    <button type="submit" class="text-red-600 hover:text-red-900 font-medium text-xs">
+                      Eliminar
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-500">No se han registrado abonos para esta venta.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel de IA y Acciones -->
+    <div class="space-y-6">
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
+            IA
+          </div>
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">Análisis de Cobro IA</h2>
+            <p class="text-xs text-slate-500">Evaluación de riesgo y acción sugerida.</p>
+          </div>
+        </div>
+
+        {% if venta.analisis_riesgo_ia %}
+        <div class="rounded-xl bg-purple-50 border border-purple-100 p-4 text-sm text-purple-900 whitespace-pre-line leading-relaxed">
+          {{ venta.analisis_riesgo_ia }}
+        </div>
+        {% else %}
+        <div class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+          Aún no se ha realizado un análisis de riesgo para esta venta.
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'analizar_riesgo_ia' venta.id %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            {% if venta.analisis_riesgo_ia %}Actualizar Análisis{% else %}Analizar Riesgo ahora{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

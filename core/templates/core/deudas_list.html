@@ -28,9 +28,9 @@
           <tr class="hover:bg-slate-50/60">
             <td class="px-4 py-3 text-slate-700 whitespace-nowrap">{{ v.fecha|date:"Y-m-d H:i" }}</td>
             <td class="px-4 py-3 text-slate-900 font-medium">{{ v.cliente|default:"(sin nombre)" }}</td>
-            <td class="px-4 py-3 text-right text-slate-700">{{ v.total }}</td>
-            <td class="px-4 py-3 text-right text-slate-700">{{ v.pagado }}</td>
-            <td class="px-4 py-3 text-right font-semibold text-slate-900">{{ v.debe }}</td>
+            <td class="px-4 py-3 text-right text-slate-700">${{ v.total_calc }} USD</td>
+            <td class="px-4 py-3 text-right text-slate-700">${{ v.pagado_calc }} USD</td>
+            <td class="px-4 py-3 text-right font-semibold text-slate-900">${{ v.deuda_calc }} USD</td>
             <td class="px-4 py-3">
               <div class="flex justify-end gap-2">
                 <a href="{% url 'venta_detalle' v.id %}"

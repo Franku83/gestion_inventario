@@ -8,6 +8,7 @@ urlpatterns = [
     # compra
     path("compra/", views.compra_list, name="compra_list"),
     path("compra/registrar/", views.compra_create, name="compra_create"),
+    path("compra/registrar-multiple/", views.compra_multiple, name="compra_multiple"),
     path("compra/<int:pk>/editar/", views.compra_update, name="compra_update"),
     path("compra/<int:pk>/eliminar/", views.compra_delete, name="compra_delete"),
     path("compra/<int:pk>/anular/", views.compra_anular, name="compra_anular"),
