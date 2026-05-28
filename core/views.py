@@ -113,6 +113,7 @@ from .forms import (
     CompraUnificadaForm,
     CompraEditForm,
     VentaForm,
+    VentaEditForm,
     PagoVentaForm,
     CompraMultipleFormSet,
 )
@@ -619,6 +620,32 @@ def venta_create(request):
         "form": form,
         "precios_productos": precios_productos
     })
+
+
+@login_required
+def venta_update(request, pk):
+    venta = get_object_or_404(Venta, pk=pk)
+
+    if request.method == "POST":
+        form = VentaEditForm(request.POST, instance=venta)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Venta/Deuda actualizada.")
+            return redirect("venta_detalle", pk=venta.pk)
+    else:
+        form = VentaEditForm(instance=venta)
+
+    # Pasar precios de venta unitarios de productos activos para auto-completado JS
+    productos = Producto.objects.filter(activo=True)
+    precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
+
+    return render(request, "core/venta_form.html", {
+        "form": form,
+        "precios_productos": precios_productos,
+        "title": "Editar Venta/Deuda",
+        "obj": venta,
+    })
+
 
 @login_required
 def deudas_list(request):

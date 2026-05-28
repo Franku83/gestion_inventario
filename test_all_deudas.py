@@ -147,6 +147,33 @@ def run_tests():
         print(response.content[:1000])
         return False
 
+    # Step 6.5: Edit the Venta (debt)
+    print("\n--- Step 6.5: Editing the Venta ---")
+    venta_edit_data = {
+        "cliente": "Cliente Test Editado",
+        "fecha": "2026-05-21T12:00",
+        "producto": prod.id,
+        "cantidad": 3,
+        "precio_unitario": Decimal("120.00"),
+        "a_plazos": True,
+        "nota": "Nota editada"
+    }
+    response = client.post(f"/venta/{venta.id}/editar/", data=venta_edit_data)
+    print(f"Status (Redirect expected): {response.status_code}")
+    if response.status_code not in [302, 200]:
+        print("ERROR: /venta/id/editar/ failed!")
+        print(response.content[:1000])
+        return False
+
+    venta.refresh_from_db()
+    if venta.cliente != "Cliente Test Editado" or venta.cantidad != 3:
+        print(f"ERROR: Venta was not correctly edited. Cliente: {venta.cliente}, Cantidad: {venta.cantidad}")
+        return False
+    print(f"After Edit: Total: {venta.total}, Pagado: {venta.pagado}, Deuda: {venta.deuda}")
+    if venta.total != Decimal("360.00"):
+        print(f"ERROR: Expected total to be 360.00, got {venta.total}")
+        return False
+
     # Step 7: Delete a payment
     pago_to_delete = PagoVenta.objects.filter(venta=venta, nota="Abono parcial de prueba").first()
     if not pago_to_delete:

@@ -34,6 +34,7 @@ urlpatterns = [
 
     # ventas / deudas / pagos
     path("venta/registrar/", views.venta_create, name="venta_create"),
+    path("venta/<int:pk>/editar/", views.venta_update, name="venta_update"),
     path("deudas/", views.deudas_list, name="deudas_list"),
     path("venta/<int:pk>/", views.venta_detalle, name="venta_detalle"),
     path("venta/<int:venta_id>/pago/", views.pago_create, name="pago_create"),

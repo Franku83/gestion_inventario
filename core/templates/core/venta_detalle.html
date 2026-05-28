@@ -13,6 +13,10 @@
          class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
         Volver a Deudas
       </a>
+      <a href="{% url 'venta_update' venta.id %}"
+         class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+        Editar
+      </a>
       {% if deuda > 0 %}
       <a href="{% url 'pago_create' venta.id %}"
          class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 shadow-sm transition">

@@ -122,6 +122,49 @@ class VentaForm(forms.ModelForm):
         return cleaned
 
 
+class VentaEditForm(forms.ModelForm):
+    class Meta:
+        model = Venta
+        fields = ["cliente", "producto", "cantidad", "precio_unitario", "a_plazos", "fecha", "nota"]
+        widgets = {
+            'fecha': forms.DateTimeInput(
+                format='%Y-%m-%dT%H:%M',
+                attrs={'type': 'datetime-local', 'class': 'form-control'}
+            )
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _bootstrapify(self)
+
+    def clean_precio_unitario(self):
+        p = self.cleaned_data.get("precio_unitario")
+        if p is None:
+            return Decimal("0.00")
+        if p < 0:
+            raise ValidationError("El precio no puede ser negativo.")
+        return p
+
+    def clean(self):
+        cleaned = super().clean()
+        producto = cleaned.get("producto")
+        cantidad = cleaned.get("cantidad")
+
+        if producto and cantidad:
+            entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
+            salidas = Venta.objects.filter(producto=producto).aggregate(s=Sum("cantidad"))["s"] or 0
+            
+            # Si estamos editando y no cambió de producto, la cantidad actual de la venta no debería contarse en las salidas.
+            if self.instance.pk and self.instance.producto == producto:
+                salidas -= self.instance.cantidad
+                
+            stock = int(entradas) - int(salidas)
+
+            if cantidad > stock:
+                raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
+        return cleaned
+
+
 class PagoVentaForm(forms.ModelForm):
     class Meta:
         model = PagoVenta

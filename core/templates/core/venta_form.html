@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% block title %}Registrar venta{% endblock %}
+{% block title %}{{ title|default:"Registrar venta" }}{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-6">
@@ -7,8 +7,8 @@
     <div class="p-6">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <h1 class="text-xl font-semibold text-slate-900">Registrar venta</h1>
-          <p class="text-sm text-slate-500 mt-1">Selecciona un producto y completa los datos.</p>
+          <h1 class="text-xl font-semibold text-slate-900">{{ title|default:"Registrar venta" }}</h1>
+          <p class="text-sm text-slate-500 mt-1">{% if obj %}Actualiza los datos de la venta.{% else %}Selecciona un producto y completa los datos.{% endif %}</p>
         </div>
         <div class="text-xs text-slate-400">Tailwind UI</div>
       </div>
@@ -61,11 +61,13 @@
             {% if form.nota.errors %}<p class="text-sm text-red-600 mt-1">{{ form.nota.errors|striptags }}</p>{% endif %}
           </div>
 
+          {% if 'pago_inicial' in form.fields %}
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-slate-700 mb-1">Pago inicial</label>
             {{ form.pago_inicial }}
             {% if form.pago_inicial.errors %}<p class="text-sm text-red-600 mt-1">{{ form.pago_inicial.errors|striptags }}</p>{% endif %}
           </div>
+          {% endif %}
         </div>
 
         {% if form.non_field_errors %}
@@ -75,13 +77,13 @@
         {% endif %}
 
         <div class="flex items-center justify-between pt-2">
-          <a href="{% url 'dashboard' %}"
+          <a href="{% if obj %}{% url 'venta_detalle' obj.id %}{% else %}{% url 'dashboard' %}{% endif %}"
              class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Cancelar
           </a>
           <button type="submit"
                   class="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-            Guardar venta
+            {{ title|default:"Guardar venta" }}
           </button>
         </div>
       </form>
