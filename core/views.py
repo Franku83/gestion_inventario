@@ -50,7 +50,7 @@ def analizar_riesgo_view(request, pk):
 def generar_resumen_view(request):
     try:
         stats = obtener_estadisticas_inventario()
-        ventas_mes = Venta.objects.filter(fecha__month=Decimal("3")).aggregate(s=Sum(F("cantidad") * F("precio_unitario")))["s"] or Decimal("0.00")
+        ventas_mes = Venta.objects.filter(fecha__month=Decimal("3"), anulada=False).aggregate(s=Sum(F("cantidad") * F("precio_unitario")))["s"] or Decimal("0.00")
         
         pagos_map = {
             r["venta_id"]: Decimal(str(r["pagado"] or "0.00"))
@@ -61,7 +61,7 @@ def generar_resumen_view(request):
             )
         }
         total_deudas = Decimal("0.00")
-        for v in Venta.objects.filter(a_plazos=True):
+        for v in Venta.objects.filter(a_plazos=True, anulada=False):
             t = (v.precio_unitario or Decimal("0.00")) * (v.cantidad or 0)
             p = pagos_map.get(v.id, Decimal("0.00"))
             d = t - p
@@ -174,6 +174,7 @@ def dashboard(request):
             r["producto_id"]: int(r["total_out"] or 0)
             for r in (
                 Venta.objects
+                .filter(anulada=False)
                 .values("producto_id")
                 .annotate(total_out=Coalesce(Sum("cantidad"), 0))
             )
@@ -201,7 +202,7 @@ def dashboard(request):
     try:
         dinero_vendido_usd = Decimal("0.00")
         # Evitamos ExpressionWrapper para que sea 100% compatible con SQLite/Postgres sin líos.
-        for v in Venta.objects.only("cantidad", "precio_unitario"):
+        for v in Venta.objects.filter(anulada=False).only("cantidad", "precio_unitario"):
             dinero_vendido_usd += (Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0)))
     except Exception:
         dinero_vendido_usd = Decimal("0.00")
@@ -219,7 +220,7 @@ def dashboard(request):
             )
         }
 
-        for v in Venta.objects.filter(a_plazos=True).only("id", "cantidad", "precio_unitario"):
+        for v in Venta.objects.filter(a_plazos=True, anulada=False).only("id", "cantidad", "precio_unitario"):
             total = Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0))
             pagado = pagos_map.get(v.id, Decimal("0.00"))
             deuda = total - pagado
@@ -231,7 +232,7 @@ def dashboard(request):
     # ---------- Ganancia estimada (USD) ----------
     ganancia_usd = Decimal("0.00")
     try:
-        for v in Venta.objects.select_related("producto").only("cantidad", "precio_unitario", "producto__costo_unitario"):
+        for v in Venta.objects.filter(anulada=False).select_related("producto").only("cantidad", "precio_unitario", "producto__costo_unitario"):
             costo = Decimal(str(v.producto.costo_unitario or 0))
             precio_venta = Decimal(str(v.precio_unitario or 0))
             ganancia_usd += (precio_venta - costo) * Decimal(v.cantidad)
@@ -315,7 +316,7 @@ def inventario(request):
     )
 
     total_out = Coalesce(
-        Sum("ventas__cantidad"),
+        Sum("ventas__cantidad", filter=Q(ventas__anulada=False)),
         Value(0),
         output_field=IntegerField(),
     )
@@ -590,6 +591,20 @@ def compra_anular(request, pk):
     messages.success(request, "Compra anulada (no se eliminó).")
     return redirect("compra_list")
 
+@login_required
+@require_POST
+def venta_anular(request, pk):
+    venta = get_object_or_404(Venta, pk=pk)
+    venta.anulada = True
+    venta.save(update_fields=["anulada"])
+    messages.success(request, "Venta anulada (no se eliminó).")
+    
+    # Redirigir al referrer (por ejemplo, /deudas/) si está disponible
+    next_url = request.META.get("HTTP_REFERER")
+    if next_url:
+        return redirect(next_url)
+    return redirect("venta_detalle", pk=pk)
+
 
 # =========================
 # Ventas + Deudas + Pagos
@@ -650,7 +665,7 @@ def venta_update(request, pk):
 @login_required
 def deudas_list(request):
     # Ventas con deuda > 0 (calculado)
-    ventas = Venta.objects.select_related("producto", "producto__proveedor").all().order_by("-fecha")
+    ventas = Venta.objects.filter(anulada=False).select_related("producto", "producto__proveedor").all().order_by("-fecha")
     con_deuda = []
     for v in ventas:
         total = (v.precio_unitario or Decimal("0.00")) * (v.cantidad or 0)

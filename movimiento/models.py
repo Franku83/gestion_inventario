@@ -47,6 +47,7 @@ class Venta(models.Model):
     fecha = models.DateTimeField(default=timezone.now)
     nota = models.CharField(max_length=255, blank=True)
     analisis_riesgo_ia = models.TextField(null=True)
+    anulada = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-fecha"]

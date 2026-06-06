@@ -90,7 +90,7 @@ def generar_resumen_negocio_ia(datos):
 def obtener_estadisticas_inventario():
     total_productos = Producto.objects.count()
     compras = Movimiento.objects.filter(tipo="IN", anulada=False).values("producto_id").annotate(total_in=Sum("cantidad"))
-    ventas = Venta.objects.values("producto_id").annotate(total_out=Sum("cantidad"))
+    ventas = Venta.objects.filter(anulada=False).values("producto_id").annotate(total_out=Sum("cantidad"))
     compras_map = {c["producto_id"]: c["total_in"] for c in compras}
     ventas_map = {v["producto_id"]: v["total_out"] for v in ventas}
     valor_total = Decimal("0.00")

@@ -13,37 +13,56 @@
          class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
         Volver a Deudas
       </a>
-      <a href="{% url 'venta_update' venta.id %}"
-         class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
-        Editar
-      </a>
-      {% if deuda > 0 %}
-      <a href="{% url 'pago_create' venta.id %}"
-         class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 shadow-sm transition">
-        Registrar Abono
-      </a>
+      {% if not venta.anulada %}
+        <a href="{% url 'venta_update' venta.id %}"
+           class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
+          Editar
+        </a>
+        {% if deuda > 0 %}
+        <a href="{% url 'pago_create' venta.id %}"
+           class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 shadow-sm transition">
+          Registrar Abono
+        </a>
+        {% endif %}
+        <form method="post" action="{% url 'venta_anular' venta.id %}" class="inline">
+          {% csrf_token %}
+          <button type="submit"
+                  onclick="return confirm('¿Anular esta venta? No se borrará del historial, pero se excluirá de la ganancia, del dinero vendido y el stock se devolverá.')"
+                  class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 shadow-sm transition">
+            Anular Venta
+          </button>
+        </form>
+      {% else %}
+        <span class="inline-flex items-center rounded-xl bg-red-100 px-4 py-2 text-sm font-bold text-red-800 ring-1 ring-inset ring-red-600/20">
+          Venta Anulada
+        </span>
       {% endif %}
     </div>
   </div>
 
   <!-- KPI Cards -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm {% if venta.anulada %}opacity-50{% endif %}">
       <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total de Venta</span>
       <p class="text-3xl font-bold text-slate-900 mt-1">${{ total }} USD</p>
       <p class="text-xs text-slate-500 mt-1">Cantidad: {{ venta.cantidad }} x ${{ venta.precio_unitario }} USD</p>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm {% if venta.anulada %}opacity-50{% endif %}">
       <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Pagado</span>
       <p class="text-3xl font-bold text-emerald-600 mt-1">${{ pagado }} USD</p>
       <p class="text-xs text-slate-500 mt-1">Porcentaje: {% if total > 0 %}{{ pagado|floatformat:2 }} de {{ total }} USD{% else %}0%{% endif %}</p>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm {% if deuda > 0 %}border-amber-200 bg-amber-50/20{% endif %}">
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm {% if venta.anulada %}border-red-200 bg-red-50/20{% elif deuda > 0 %}border-amber-200 bg-amber-50/20{% endif %}">
       <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Deuda Pendiente</span>
+      {% if venta.anulada %}
+      <p class="text-3xl font-bold text-red-600 mt-1">$0.00 USD</p>
+      <p class="text-xs text-slate-500 mt-1">Estado: <span class="font-semibold text-red-700">Anulada (Sin deuda)</span></p>
+      {% else %}
       <p class="text-3xl font-bold {% if deuda > 0 %}text-amber-600{% else %}text-slate-900{% endif %} mt-1">${{ deuda }} USD</p>
       <p class="text-xs text-slate-500 mt-1">Estado: {% if deuda > 0 %}<span class="font-semibold text-amber-700">Con saldo pendiente</span>{% else %}<span class="font-semibold text-emerald-700">Cancelada</span>{% endif %}</p>
+      {% endif %}
     </div>
   </div>
 

@@ -114,7 +114,7 @@ class VentaForm(forms.ModelForm):
 
         if producto and cantidad:
             entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            salidas = Venta.objects.filter(producto=producto).aggregate(s=Sum("cantidad"))["s"] or 0
+            salidas = Venta.objects.filter(producto=producto, anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
             stock = int(entradas) - int(salidas)
 
             if cantidad > stock:
@@ -152,7 +152,7 @@ class VentaEditForm(forms.ModelForm):
 
         if producto and cantidad:
             entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            salidas = Venta.objects.filter(producto=producto).aggregate(s=Sum("cantidad"))["s"] or 0
+            salidas = Venta.objects.filter(producto=producto, anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
             
             # Si estamos editando y no cambió de producto, la cantidad actual de la venta no debería contarse en las salidas.
             if self.instance.pk and self.instance.producto == producto:
