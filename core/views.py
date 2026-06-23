@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum, F, Q, IntegerField, DecimalField, Value
-from django.db.models.functions import Coalesce, NullIf, ExtractYear, ExtractMonth
+from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models.deletion import ProtectedError
@@ -798,39 +798,47 @@ def compra_multiple(request):
 
 @login_required
 def resumen_mensual(request):
+    from collections import defaultdict
+
     anio_actual = timezone.now().year
     anio = int(request.GET.get("anio", anio_actual))
 
-    ventas = Venta.objects.filter(anulada=False, fecha__year=anio)
-
-    meses = (
-        ventas
-        .annotate(mes=ExtractMonth("fecha"))
-        .values("mes")
-        .annotate(
-            num_ventas=Sum(Value(1, output_field=IntegerField())),
-            total_vendido=Sum(F("cantidad") * F("precio_unitario")),
-            total_costo=Sum(F("cantidad") * F("producto__costo_unitario")),
-        )
-        .order_by("mes")
+    ventas = (
+        Venta.objects
+        .filter(anulada=False, fecha__year=anio)
+        .select_related("producto")
     )
 
+    meses_data = defaultdict(lambda: {"num_ventas": 0, "total_vendido": Decimal("0"), "total_costo": Decimal("0")})
+
+    for v in ventas:
+        mes = v.fecha.month
+        meses_data[mes]["num_ventas"] += 1
+        meses_data[mes]["total_vendido"] += (v.precio_unitario or Decimal("0")) * (v.cantidad or 0)
+        meses_data[mes]["total_costo"] += (v.producto.costo_unitario or Decimal("0")) * (v.cantidad or 0)
+
+    nombres_mes = [
+        "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ]
+
     resumen = []
-    for m in meses:
-        total_vendido = m["total_vendido"] or Decimal("0.00")
-        total_costo = m["total_costo"] or Decimal("0.00")
+    for mes in sorted(meses_data.keys()):
+        d = meses_data[mes]
+        total_vendido = d["total_vendido"]
+        total_costo = d["total_costo"]
         ganancia = total_vendido - total_costo
-        margen = (ganancia / total_vendido * 100) if total_vendido > 0 else Decimal("0.00")
+        if total_vendido > 0:
+            margen = float(ganancia / total_vendido * 100)
+        else:
+            margen = 0.0
         resumen.append({
-            "mes": m["mes"],
-            "mes_nombre": [
-                "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-            ][m["mes"]],
-            "num_ventas": m["num_ventas"],
-            "total_vendido": total_vendido,
-            "total_costo": total_costo,
-            "ganancia": ganancia,
+            "mes": mes,
+            "mes_nombre": nombres_mes[mes],
+            "num_ventas": d["num_ventas"],
+            "total_vendido": float(total_vendido),
+            "total_costo": float(total_costo),
+            "ganancia": float(ganancia),
             "margen": round(margen, 1),
         })
 
@@ -839,17 +847,16 @@ def resumen_mensual(request):
     total_general_ganancia = total_general_vendido - total_general_costo
     total_general_margen = (
         round(total_general_ganancia / total_general_vendido * 100, 1)
-        if total_general_vendido > 0 else 0
+        if total_general_vendido > 0 else 0.0
     )
     total_general_ventas = sum(r["num_ventas"] for r in resumen)
 
-    anios = (
+    anios_qs = (
         Venta.objects.filter(anulada=False)
-        .annotate(a=ExtractYear("fecha"))
-        .values_list("a", flat=True)
+        .dates("fecha", "year")
         .distinct()
-        .order_by("a")
     )
+    anios = [d.year for d in anios_qs]
 
     return render(request, "core/resumen_mensual.html", {
         "resumen": resumen,
