@@ -13,8 +13,9 @@
         <div class="text-xs text-slate-400">Tailwind UI</div>
       </div>
 
-      <form method="post" class="mt-6 space-y-5">
+      <form method="post" id="venta-form" class="mt-6 space-y-5">
         {% csrf_token %}
+        <input type="hidden" name="idempotency_token" value="{{ idempotency_token }}">
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -81,7 +82,7 @@
              class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
             Cancelar
           </a>
-          <button type="submit"
+          <button type="submit" id="btn-submit"
                   class="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
             {{ title|default:"Guardar venta" }}
           </button>
@@ -95,6 +96,15 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("venta-form");
+    const btn = document.getElementById("btn-submit");
+    if (form && btn) {
+      form.addEventListener("submit", function() {
+        btn.disabled = true;
+        btn.textContent = "Guardando...";
+      });
+    }
+
     const precios = JSON.parse(document.getElementById("precios-productos-data").textContent);
     const selectProducto = document.getElementById("id_producto");
     const inputPrecioUnitario = document.getElementById("id_precio_unitario");

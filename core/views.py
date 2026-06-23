@@ -1,6 +1,8 @@
+import uuid
 from decimal import Decimal
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Sum, F, Q, IntegerField, DecimalField, Value
 from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render, redirect, get_object_or_404
@@ -611,8 +613,16 @@ def venta_anular(request, pk):
 # =========================
 
 @login_required
+@transaction.atomic
 def venta_create(request):
+    used_tokens = request.session.get("used_venta_tokens", [])
+
     if request.method == "POST":
+        token = request.POST.get("idempotency_token", "")
+        if token in used_tokens:
+            messages.warning(request, "Esta venta ya fue registrada.")
+            return redirect("dashboard")
+
         form = VentaForm(request.POST)
         if form.is_valid():
             venta = form.save(commit=False)
@@ -622,10 +632,19 @@ def venta_create(request):
             if pago_inicial > 0:
                 PagoVenta.objects.create(venta=venta, monto=pago_inicial, fecha=venta.fecha, nota="Pago inicial")
 
+            # Marcar token como usado
+            used_tokens.append(token)
+            if len(used_tokens) > 50:
+                used_tokens = used_tokens[-50:]
+            request.session["used_venta_tokens"] = used_tokens
+
             messages.success(request, "Venta registrada.")
             return redirect("dashboard")
     else:
         form = VentaForm()
+
+    # Generar token de idempotencia para el formulario
+    idempotency_token = str(uuid.uuid4())
 
     # Pasar precios de venta unitarios de productos activos para auto-completado JS
     productos = Producto.objects.filter(activo=True)
@@ -633,7 +652,8 @@ def venta_create(request):
 
     return render(request, "core/venta_form.html", {
         "form": form,
-        "precios_productos": precios_productos
+        "precios_productos": precios_productos,
+        "idempotency_token": idempotency_token,
     })
 
 
