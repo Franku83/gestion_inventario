@@ -315,3 +315,41 @@ class CompraUnificadaForm(forms.Form):
         )
 
         return producto, mov
+
+
+class ItemVentaForm(forms.Form):
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        label="Producto",
+    )
+    cantidad = forms.IntegerField(min_value=1, initial=1, label="Cantidad")
+    precio_unitario = forms.DecimalField(
+        max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio venta"
+    )
+    cliente = forms.CharField(required=False, max_length=150, label="Cliente")
+    nota = forms.CharField(required=False, max_length=255, label="Nota")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _bootstrapify(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        producto = cleaned.get("producto")
+        cantidad = cleaned.get("cantidad")
+        if producto and cantidad:
+            entradas = Movimiento.objects.filter(
+                producto=producto, tipo="IN", anulada=False
+            ).aggregate(s=Sum("cantidad"))["s"] or 0
+            salidas = Venta.objects.filter(
+                producto=producto, anulada=False
+            ).aggregate(s=Sum("cantidad"))["s"] or 0
+            stock = int(entradas) - int(salidas)
+            if cantidad > stock:
+                self.add_error(
+                    "cantidad", f"Stock insuficiente. Disponible: {stock}"
+                )
+        return cleaned
+
+
+VentaLoteFormSet = forms.formset_factory(ItemVentaForm, extra=1, can_delete=True)

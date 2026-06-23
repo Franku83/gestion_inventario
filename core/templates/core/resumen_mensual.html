@@ -1,0 +1,72 @@
+{% extends "core/base.html" %}
+{% block title %}Resumen Mensual{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+    <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">Resumen Mensual</h1>
+        <p class="text-sm text-slate-500 mt-1">Ganancias y ventas agrupadas por mes.</p>
+      </div>
+      <form method="get" class="flex items-center gap-2">
+        <select name="anio" onchange="this.form.submit()"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+          {% for a in anios %}
+            <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    {% if resumen %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <tr>
+            <th class="px-6 py-3">Mes</th>
+            <th class="px-6 py-3 text-right"># Ventas</th>
+            <th class="px-6 py-3 text-right">Total Vendido</th>
+            <th class="px-6 py-3 text-right">Costo</th>
+            <th class="px-6 py-3 text-right">Ganancia</th>
+            <th class="px-6 py-3 text-right">Margen</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in resumen %}
+          <tr class="hover:bg-slate-50/50">
+            <td class="px-6 py-3 font-medium text-slate-900">{{ r.mes_nombre }}</td>
+            <td class="px-6 py-3 text-right text-slate-600">{{ r.num_ventas }}</td>
+            <td class="px-6 py-3 text-right text-slate-600">${{ r.total_vendido|floatformat:2 }}</td>
+            <td class="px-6 py-3 text-right text-slate-600">${{ r.total_costo|floatformat:2 }}</td>
+            <td class="px-6 py-3 text-right font-semibold {% if r.ganancia >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
+              ${{ r.ganancia|floatformat:2 }}
+            </td>
+            <td class="px-6 py-3 text-right text-slate-500">{{ r.margen }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 border-t border-slate-200">
+          <tr class="font-semibold text-slate-900">
+            <td class="px-6 py-3">Total</td>
+            <td class="px-6 py-3 text-right">{{ total_general_ventas }}</td>
+            <td class="px-6 py-3 text-right">${{ total_general_vendido|floatformat:2 }}</td>
+            <td class="px-6 py-3 text-right">${{ total_general_costo|floatformat:2 }}</td>
+            <td class="px-6 py-3 text-right {% if total_general_ganancia >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
+              ${{ total_general_ganancia|floatformat:2 }}
+            </td>
+            <td class="px-6 py-3 text-right">{{ total_general_margen }}%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center text-slate-500">
+      No hay ventas registradas en {{ anio }}.
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

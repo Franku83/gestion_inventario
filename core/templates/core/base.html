@@ -92,8 +92,14 @@
                   <a href="{% url 'venta_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
                     Registrar venta
                   </a>
+                  <a href="{% url 'venta_lote' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Registrar venta en lote
+                  </a>
                   <a href="{% url 'deudas_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
                     Deudas
+                  </a>
+                  <a href="{% url 'resumen_mensual' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
+                    Resumen mensual
                   </a>
                 </div>
               </div>
@@ -176,7 +182,10 @@
               <a href="{% url 'inventario' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Inventario</a>
               <a href="{% url 'compra_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Compras</a>
               <a href="{% url 'compra_multiple' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Registrar compra en lote</a>
-              <a href="{% url 'venta_create' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Ventas</a>
+              <a href="{% url 'venta_create' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Registrar venta</a>
+              <a href="{% url 'venta_lote' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Registrar venta en lote</a>
+              <a href="{% url 'deudas_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Deudas</a>
+              <a href="{% url 'resumen_mensual' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Resumen mensual</a>
               <a href="{% url 'proveedor_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Proveedores</a>
               <a href="{% url 'tipo_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Tipos</a>
             </div>

@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum, F, Q, IntegerField, DecimalField, Value
-from django.db.models.functions import Coalesce, NullIf
+from django.db.models.functions import Coalesce, NullIf, ExtractYear, ExtractMonth
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models.deletion import ProtectedError
@@ -23,6 +23,7 @@ from core.services import (
     analizar_riesgo_cobro_ia,
     generar_resumen_negocio_ia
 )
+from core.forms import VentaLoteFormSet
 
 @login_required
 @require_POST
@@ -793,3 +794,128 @@ def compra_multiple(request):
         formset = CompraMultipleFormSet()
 
     return render(request, "core/compra_multiple.html", {"formset": formset})
+
+
+@login_required
+def resumen_mensual(request):
+    anio_actual = timezone.now().year
+    anio = int(request.GET.get("anio", anio_actual))
+
+    ventas = Venta.objects.filter(anulada=False, fecha__year=anio)
+
+    meses = (
+        ventas
+        .annotate(mes=ExtractMonth("fecha"))
+        .values("mes")
+        .annotate(
+            num_ventas=Sum(Value(1, output_field=IntegerField())),
+            total_vendido=Sum(F("cantidad") * F("precio_unitario")),
+            total_costo=Sum(F("cantidad") * F("producto__costo_unitario")),
+        )
+        .order_by("mes")
+    )
+
+    resumen = []
+    for m in meses:
+        total_vendido = m["total_vendido"] or Decimal("0.00")
+        total_costo = m["total_costo"] or Decimal("0.00")
+        ganancia = total_vendido - total_costo
+        margen = (ganancia / total_vendido * 100) if total_vendido > 0 else Decimal("0.00")
+        resumen.append({
+            "mes": m["mes"],
+            "mes_nombre": [
+                "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+            ][m["mes"]],
+            "num_ventas": m["num_ventas"],
+            "total_vendido": total_vendido,
+            "total_costo": total_costo,
+            "ganancia": ganancia,
+            "margen": round(margen, 1),
+        })
+
+    total_general_vendido = sum(r["total_vendido"] for r in resumen)
+    total_general_costo = sum(r["total_costo"] for r in resumen)
+    total_general_ganancia = total_general_vendido - total_general_costo
+    total_general_margen = (
+        round(total_general_ganancia / total_general_vendido * 100, 1)
+        if total_general_vendido > 0 else 0
+    )
+    total_general_ventas = sum(r["num_ventas"] for r in resumen)
+
+    anios = (
+        Venta.objects.filter(anulada=False)
+        .annotate(a=ExtractYear("fecha"))
+        .values_list("a", flat=True)
+        .distinct()
+        .order_by("a")
+    )
+
+    return render(request, "core/resumen_mensual.html", {
+        "resumen": resumen,
+        "anio": anio,
+        "anios": anios,
+        "total_general_vendido": total_general_vendido,
+        "total_general_costo": total_general_costo,
+        "total_general_ganancia": total_general_ganancia,
+        "total_general_margen": total_general_margen,
+        "total_general_ventas": total_general_ventas,
+    })
+
+
+@login_required
+@transaction.atomic
+def venta_lote(request):
+    used_tokens = request.session.get("used_venta_tokens", [])
+
+    if request.method == "POST":
+        token = request.POST.get("idempotency_token", "")
+        if token in used_tokens:
+            messages.warning(request, "Este lote de ventas ya fue registrado.")
+            return redirect("dashboard")
+
+        formset = VentaLoteFormSet(request.POST)
+        if formset.is_valid():
+            ventas_creadas = 0
+            for form in formset:
+                if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                    continue
+                cantidad = form.cleaned_data.get("cantidad")
+                if not cantidad:
+                    continue
+
+                producto = form.cleaned_data["producto"]
+                precio_unitario = form.cleaned_data.get("precio_unitario") or Decimal("0.00")
+                cliente = form.cleaned_data.get("cliente") or ""
+                nota = form.cleaned_data.get("nota") or ""
+
+                Venta.objects.create(
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    cliente=cliente,
+                    nota=nota,
+                )
+                ventas_creadas += 1
+
+            if ventas_creadas > 0:
+                used_tokens.append(token)
+                if len(used_tokens) > 50:
+                    used_tokens = used_tokens[-50:]
+                request.session["used_venta_tokens"] = used_tokens
+                messages.success(request, f"Se registraron {ventas_creadas} ventas con éxito.")
+            else:
+                messages.warning(request, "No se registró ninguna venta.")
+            return redirect("dashboard")
+    else:
+        formset = VentaLoteFormSet()
+
+    productos = Producto.objects.filter(activo=True)
+    precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
+    idempotency_token = str(uuid.uuid4())
+
+    return render(request, "core/venta_lote.html", {
+        "formset": formset,
+        "precios_productos": precios_productos,
+        "idempotency_token": idempotency_token,
+    })
