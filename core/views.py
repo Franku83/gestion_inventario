@@ -308,42 +308,35 @@ def inventario(request):
 
     # ----------------------------
     # STOCK = SUM(compras IN no anuladas) - SUM(ventas)
-    # (OJO: related_name en models.py es movimientos / ventas)
+    # Usar Subquery para evitar producto cartesiano en JOINs
     # ----------------------------
-    total_in = Coalesce(
-        Sum(
-            "movimientos__cantidad",
-            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
-        ),
-        Value(0),
-        output_field=IntegerField(),
-    )
+    from django.db.models import Subquery, OuterRef
 
-    total_out = Coalesce(
-        Sum("ventas__cantidad", filter=Q(ventas__anulada=False)),
-        Value(0),
-        output_field=IntegerField(),
-    )
+    total_in_sq = Movimiento.objects.filter(
+        producto=OuterRef("pk"), tipo="IN", anulada=False
+    ).order_by().values("producto").annotate(
+        total=Sum("cantidad")
+    ).values("total")
 
-    # ----------------------------
-    # COSTO PROM = SUM(IN cantidad * precio_unitario) / SUM(IN cantidad)
-    # ----------------------------
-    total_cost_in = Coalesce(
-        Sum(
-            F("movimientos__cantidad") * F("movimientos__precio_unitario"),
-            filter=Q(movimientos__tipo="IN", movimientos__anulada=False),
-            output_field=DecimalField(max_digits=18, decimal_places=2),
-        ),
-        Value(0),
-        output_field=DecimalField(max_digits=18, decimal_places=2),
-    )
+    total_out_sq = Venta.objects.filter(
+        producto=OuterRef("pk"), anulada=False
+    ).order_by().values("producto").annotate(
+        total=Sum("cantidad")
+    ).values("total")
+
+    total_cost_sq = Movimiento.objects.filter(
+        producto=OuterRef("pk"), tipo="IN", anulada=False
+    ).order_by().values("producto").annotate(
+        total=Sum(F("cantidad") * F("precio_unitario"))
+    ).values("total")
+
+    total_in_val = Coalesce(Subquery(total_in_sq), Value(0), output_field=IntegerField())
+    total_out_val = Coalesce(Subquery(total_out_sq), Value(0), output_field=IntegerField())
+    total_cost_val = Coalesce(Subquery(total_cost_sq), Value(0), output_field=DecimalField(max_digits=18, decimal_places=2))
 
     productos = productos.annotate(
-        _total_in=total_in,
-        _total_out=total_out,
-    ).annotate(
-        stock=F("_total_in") - F("_total_out"),
-        costo_prom=total_cost_in / NullIf(F("_total_in"), 0),
+        stock=total_in_val - total_out_val,
+        costo_prom=total_cost_val / NullIf(total_in_val, 0),
     )
 
     if solo_stock:
