@@ -52,6 +52,15 @@
         </tbody>
       </table>
     </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm">
+      <span class="text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="rounded-lg border px-3 py-1.5">Anterior</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="rounded-lg border px-3 py-1.5">Siguiente</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

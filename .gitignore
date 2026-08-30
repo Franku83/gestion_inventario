@@ -24,3 +24,8 @@ Thumbs.db
 
 # Antigravity CLI metadata
 .antigravitycli/
+
+# Graphify output
+graphify-out/
+
+# Env example keep, but ignore real .env is already above

@@ -6,9 +6,17 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only")
-DEBUG = os.environ.get("DEBUG", "1") == "1"
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+if not SECRET_KEY:
+    if os.environ.get("DEBUG", "0") == "1":
+        SECRET_KEY = "dev-only-insecure-do-not-use-in-prod"
+    else:
+        raise RuntimeError("SECRET_KEY must be set in production (DEBUG != 1)")
+DEBUG = os.environ.get("DEBUG", "0") == "1"
+_allowed = os.environ.get("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()] if _allowed else []
+if DEBUG and "testserver" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("testserver")
 
 raw_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
 CSRF_TRUSTED_ORIGINS = []
@@ -102,7 +110,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 CACHES = {
     "default": {
+        # LocMemCache no es compartido entre workers gunicorn; para prod usar Redis/Memcached
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "joyeria-cache",
     }
 }
 
@@ -121,4 +131,6 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = "same-origin"
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+# Validación final
+if not DEBUG and not ALLOWED_HOSTS:
+    raise RuntimeError("ALLOWED_HOSTS must be set in production (DEBUG=0)")

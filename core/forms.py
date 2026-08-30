@@ -3,7 +3,6 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 
-import producto
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto

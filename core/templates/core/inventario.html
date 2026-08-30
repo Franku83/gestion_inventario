@@ -10,6 +10,37 @@
     </div>
   </div>
 
+  <!-- Filtros -->
+  <form method="get" class="mt-4 bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap gap-3 items-end">
+    <div class="flex-1 min-w-[180px]">
+      <label class="text-xs font-semibold text-slate-600">Buscar</label>
+      <input type="text" name="q" value="{{ filters.q }}" placeholder="Nombre producto" class="form-control mt-1">
+    </div>
+    <div class="min-w-[160px]">
+      <label class="text-xs font-semibold text-slate-600">Proveedor</label>
+      <select name="proveedor" class="form-control mt-1">
+        <option value="">Todos</option>
+        {% for prov in proveedores %}
+          <option value="{{ prov.id }}" {% if filters.proveedor == prov.id|stringformat:"s" %}selected{% endif %}>{{ prov.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="min-w-[160px]">
+      <label class="text-xs font-semibold text-slate-600">Tipo</label>
+      <select name="tipo" class="form-control mt-1">
+        <option value="">Todos</option>
+        {% for t in tipos %}
+          <option value="{{ t.id }}" {% if filters.tipo == t.id|stringformat:"s" %}selected{% endif %}>{{ t.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+      <input type="checkbox" name="solo_stock" {% if filters.solo_stock %}checked{% endif %} class="form-check-input"> Solo con stock
+    </label>
+    <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
+    <a href="{% url 'inventario' %}" class="rounded-xl border border-slate-200 px-4 py-2 text-sm">Limpiar</a>
+  </form>
+
   <div class="bg-white border border-slate-200 rounded-2xl shadow-sm mt-5 overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm">
@@ -17,42 +48,45 @@
           <tr>
             <th class="text-left font-semibold px-4 py-3">Producto</th>
             <th class="text-left font-semibold px-4 py-3">Proveedor</th>
+            <th class="text-left font-semibold px-4 py-3">Tipo</th>
             <th class="text-right font-semibold px-4 py-3">Stock</th>
             <th class="text-right font-semibold px-4 py-3">Costo prom.</th>
-            <th class="text-center font-semibold px-4 py-3">IA</th>
+            <th class="text-right font-semibold px-4 py-3">Precio venta</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for p in productos %}
           <tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-3 text-slate-900 font-medium">
-              {{ p.nombre }}
-              {% if p.descripcion_ia %}
-                <div class="text-xs text-slate-500 font-normal mt-1 italic">{{ p.descripcion_ia|truncatechars:100 }}</div>
-              {% endif %}
-            </td>
+            <td class="px-4 py-3 text-slate-900 font-medium">{{ p.nombre }}</td>
             <td class="px-4 py-3 text-slate-700">{{ p.proveedor.nombre }}</td>
+            <td class="px-4 py-3 text-slate-600">{{ p.tipo.nombre }}</td>
             <td class="px-4 py-3 text-right text-slate-700">{{ p.stock }}</td>
-            <td class="px-4 py-3 text-right text-slate-700">{{ p.costo_promedio }}</td>
-            <td class="px-4 py-3 text-center">
-              <form method="post" action="{% url 'generar_descripcion_ia' p.id %}">
-                {% csrf_token %}
-                <button type="submit" class="text-indigo-600 hover:text-indigo-900 title="Generar descripción con IA"">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </button>
-              </form>
+            <td class="px-4 py-3 text-right text-slate-700">
+              {% if p.costo_prom %} ${{ p.costo_prom|floatformat:2 }}{% else %}-{% endif %}
             </td>
+            <td class="px-4 py-3 text-right text-slate-700">${{ p.precio_venta_unitario|floatformat:2 }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="4" class="px-4 py-8 text-center text-slate-500">No hay productos en inventario.</td>
+            <td colspan="6" class="px-4 py-8 text-center text-slate-500">No hay productos en inventario.</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm">
+      <span class="text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} — {{ page_obj.paginator.count }} productos</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+          <a href="?q={{ filters.q }}&proveedor={{ filters.proveedor }}&tipo={{ filters.tipo }}{% if filters.solo_stock %}&solo_stock=on{% endif %}&page={{ page_obj.previous_page_number }}" class="rounded-lg border px-3 py-1.5">Anterior</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a href="?q={{ filters.q }}&proveedor={{ filters.proveedor }}&tipo={{ filters.tipo }}{% if filters.solo_stock %}&solo_stock=on{% endif %}&page={{ page_obj.next_page_number }}" class="rounded-lg border px-3 py-1.5">Siguiente</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

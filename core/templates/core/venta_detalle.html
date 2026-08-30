@@ -6,7 +6,7 @@
   <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
     <div>
       <h1 class="text-2xl font-bold text-slate-900">Detalle de Venta</h1>
-      <p class="text-sm text-slate-500 mt-1">Gestión de la venta, abonos y análisis de riesgo.</p>
+      <p class="text-sm text-slate-500 mt-1">Gestión de la venta y abonos.</p>
     </div>
     <div class="flex items-center gap-3">
       <a href="{% url 'deudas_list' %}"
@@ -156,39 +156,15 @@
       </div>
     </div>
 
-    <!-- Panel de IA y Acciones -->
-    <div class="space-y-6">
-      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-            IA
-          </div>
-          <div>
-            <h2 class="text-base font-semibold text-slate-900">Análisis de Cobro IA</h2>
-            <p class="text-xs text-slate-500">Evaluación de riesgo y acción sugerida.</p>
-          </div>
+    <div class="lg:col-span-1">
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h2 class="text-base font-semibold text-slate-900">Acciones</h2>
+        <p class="text-sm text-slate-500 mt-1">Gestiona la venta y sus pagos.</p>
+        <div class="mt-4 space-y-2 text-sm text-slate-600">
+          <p>• Edita cantidad/precio si hubo error.</p>
+          <p>• Registra abonos parciales.</p>
+          <p>• Anula para revertir stock y excluir de métricas.</p>
         </div>
-
-        {% if venta.analisis_riesgo_ia %}
-        <div class="rounded-xl bg-purple-50 border border-purple-100 p-4 text-sm text-purple-900 whitespace-pre-line leading-relaxed">
-          {{ venta.analisis_riesgo_ia }}
-        </div>
-        {% else %}
-        <div class="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-          Aún no se ha realizado un análisis de riesgo para esta venta.
-        </div>
-        {% endif %}
-
-        <form method="post" action="{% url 'analizar_riesgo_ia' venta.id %}">
-          {% csrf_token %}
-          <button type="submit"
-                  class="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            {% if venta.analisis_riesgo_ia %}Actualizar Análisis{% else %}Analizar Riesgo ahora{% endif %}
-          </button>
-        </form>
       </div>
     </div>
   </div>

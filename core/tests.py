@@ -62,7 +62,16 @@ class VentaAnuladaTests(TestCase):
         # Confirm stock calculations, profit, and dashboard stats before annulling
         # Stock: 10 in - 3 out = 7 remaining
         response = self.client.get(reverse("inventario"))
-        prod_obj = response.context["productos"].get(id=self.producto.id)
+        # Compat con paginación: productos es Page, buscar en object_list o iterar
+        productos_ctx = response.context["productos"]
+        try:
+            prod_obj = productos_ctx.get(id=self.producto.id)
+        except AttributeError:
+            # Page object -> usar object_list QuerySet
+            prod_obj = next((p for p in productos_ctx if p.id == self.producto.id), None)
+            if prod_obj is None and hasattr(productos_ctx, "object_list"):
+                prod_obj = productos_ctx.object_list.get(id=self.producto.id)
+        self.assertIsNotNone(prod_obj)
         self.assertEqual(prod_obj.stock, 7)
 
         # Profit: (120 - 50) * 3 = 210 USD
@@ -88,7 +97,14 @@ class VentaAnuladaTests(TestCase):
         # 3. Confirm stock calculations, profit, and dashboard stats after annulling
         # Stock should return to 10
         response = self.client.get(reverse("inventario"))
-        prod_obj = response.context["productos"].get(id=self.producto.id)
+        productos_ctx = response.context["productos"]
+        try:
+            prod_obj = productos_ctx.get(id=self.producto.id)
+        except AttributeError:
+            prod_obj = next((p for p in productos_ctx if p.id == self.producto.id), None)
+            if prod_obj is None and hasattr(productos_ctx, "object_list"):
+                prod_obj = productos_ctx.object_list.get(id=self.producto.id)
+        self.assertIsNotNone(prod_obj)
         self.assertEqual(prod_obj.stock, 10)
 
         # Profit, Sold, Debt should exclude the annulled sale (equal to 0 now)
