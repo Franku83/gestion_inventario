@@ -13,10 +13,22 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from movimiento.forms import PagoVentaForm, VentaEditForm, VentaForm, VentaLoteFormSet
+from movimiento.forms import PagoVentaForm, VentaEditForm, VentaFormSet
 from movimiento.models import PagoVenta, Venta
 from movimiento.services import get_deuda, get_stock_map, validar_stock_lote, ventas_con_deuda_qs
 from producto.models import Producto
+
+
+def _safe_next(request, default_name="venta_detalle", **kwargs):
+    """Redirige a ?next= si es una URL local segura, si no al default."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get("next") or request.GET.get("next") or ""
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        return redirect(nxt)
+    from django.urls import reverse
+    if kwargs:
+        return redirect(default_name, **kwargs)
+    return redirect(default_name)
 
 
 @login_required
@@ -35,39 +47,79 @@ def venta_anular(request, pk):
 @login_required
 @transaction.atomic
 def venta_create(request):
+    """Flujo único de ventas (Sprint 3): formset 1 fila + botón agregar.
+
+    Cada fila: producto, cantidad, precio, cliente, a_plazos, fecha, nota.
+    `pago_inicial` (nivel página) solo válido con 1 sola venta.
+    """
     used_tokens = request.session.get("used_venta_tokens", [])
+    pago_inicial_raw = "0.00"
     if request.method == "POST":
         token = request.POST.get("idempotency_token", "")
         if token in used_tokens:
             messages.warning(request, "Esta venta ya fue registrada.")
             return redirect("dashboard")
-        form = VentaForm(request.POST)
-        if form.is_valid():
-            # Re-validar stock con la fuente única para evitar race condition
-            producto = form.cleaned_data["producto"]
-            cantidad = form.cleaned_data["cantidad"]
-            stock_map = get_stock_map([producto.id])
-            if cantidad > stock_map.get(producto.id, 0):
-                form.add_error("cantidad", f"Stock insuficiente. Disponible: {stock_map.get(producto.id, 0)}")
-            else:
-                venta = form.save(commit=False)
-                venta.save()
-                pago_inicial = form.cleaned_data.get("pago_inicial") or Decimal("0.00")
+        formset = VentaFormSet(request.POST)
+        pago_inicial_raw = (request.POST.get("pago_inicial") or "0.00").strip() or "0.00"
+        try:
+            pago_inicial = Decimal(pago_inicial_raw)
+        except Exception:
+            pago_inicial = Decimal("-1")  # fuerza error de validación abajo
+        if formset.is_valid() and pago_inicial >= 0:
+            valid_forms = []
+            items = []
+            for form in formset:
+                if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                    continue
+                if not form.cleaned_data.get("cantidad"):
+                    continue
+                valid_forms.append(form)
+                items.append((form.cleaned_data["producto"].id, form.cleaned_data["cantidad"]))
+            faltantes = validar_stock_lote(items) if items else {}
+            for f in valid_forms:
+                pid = f.cleaned_data["producto"].id
+                if pid in faltantes:
+                    info = faltantes[pid]
+                    f.add_error("cantidad", f"Stock insuficiente en lote. Disponible: {info['disponible']}, solicitado acumulado: {info['pedido']}")
+            if pago_inicial > 0 and len(valid_forms) != 1:
+                formset._non_form_errors = formset.error_class(["El pago inicial solo aplica a venta única (1 fila)."])
+            if not faltantes and not (pago_inicial > 0 and len(valid_forms) != 1) and valid_forms:
+                ventas = []
+                for form in valid_forms:
+                    ventas.append(Venta.objects.create(
+                        producto=form.cleaned_data["producto"],
+                        cantidad=form.cleaned_data["cantidad"],
+                        precio_unitario=form.cleaned_data.get("precio_unitario") or Decimal("0.00"),
+                        cliente=form.cleaned_data.get("cliente") or "",
+                        a_plazos=bool(form.cleaned_data.get("a_plazos")),
+                        fecha=form.cleaned_data.get("fecha") or timezone.now(),
+                        nota=form.cleaned_data.get("nota") or "",
+                    ))
                 if pago_inicial > 0:
-                    PagoVenta.objects.create(venta=venta, monto=pago_inicial, fecha=venta.fecha, nota="Pago inicial")
+                    PagoVenta.objects.create(venta=ventas[0], monto=pago_inicial, fecha=ventas[0].fecha, nota="Pago inicial")
                 used_tokens.append(token)
                 if len(used_tokens) > 50:
                     used_tokens = used_tokens[-50:]
                 request.session["used_venta_tokens"] = used_tokens
-                messages.success(request, "Venta registrada.")
+                messages.success(request, "Venta registrada." if len(ventas) == 1 else f"Se registraron {len(ventas)} ventas con éxito.")
                 return redirect("dashboard")
+            if not valid_forms and formset.is_valid():
+                messages.warning(request, "No se registró ninguna venta.")
+                return redirect("dashboard")
+        elif pago_inicial < 0:
+            formset._non_form_errors = formset.error_class(["Pago inicial inválido."])
     else:
-        form = VentaForm()
+        formset = VentaFormSet()
 
     idempotency_token = str(uuid.uuid4())
     productos = Producto.objects.filter(activo=True)
     precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
-    return render(request, "core/venta_form.html", {"form": form, "precios_productos": precios_productos, "idempotency_token": idempotency_token})
+    return render(request, "core/venta_registrar.html", {
+        "formset": formset,
+        "precios_productos": precios_productos,
+        "idempotency_token": idempotency_token,
+        "pago_inicial": pago_inicial_raw,
+    })
 
 
 @login_required
@@ -123,25 +175,33 @@ def venta_detalle(request, pk):
 @login_required
 @transaction.atomic
 def pago_create(request, venta_id):
+    """Registra un abono. Sprint 3: bloquea monto > deuda y vuelve a ?next= (bandeja)."""
     venta = get_object_or_404(Venta, pk=venta_id)
     if venta.anulada:
         messages.error(request, "No se puede abonar una venta anulada.")
         return redirect("venta_detalle", pk=venta.id)
+    deuda_actual = get_deuda(venta)
     if request.method == "POST":
         form = PagoVentaForm(request.POST)
         if form.is_valid():
             monto = form.cleaned_data["monto"]
             deuda = get_deuda(venta)
             if monto > deuda:
-                messages.warning(request, f"El abono excede la deuda pendiente (${deuda}). Se registrará igual.")
-            pago = form.save(commit=False)
-            pago.venta = venta
-            pago.save()
-            messages.success(request, "Pago registrado.")
-            return redirect("venta_detalle", pk=venta.id)
+                form.add_error("monto", f"El monto excede la deuda pendiente (${deuda}).")
+            else:
+                pago = form.save(commit=False)
+                pago.venta = venta
+                pago.save()
+                messages.success(request, "Pago registrado.")
+                return _safe_next(request, "venta_detalle", pk=venta.id)
     else:
         form = PagoVentaForm()
-    return render(request, "core/abono_form.html", {"form": form, "venta": venta})
+    return render(request, "core/abono_form.html", {
+        "form": form,
+        "venta": venta,
+        "deuda": deuda_actual,
+        "next": request.GET.get("next", ""),
+    })
 
 
 @login_required
@@ -209,66 +269,3 @@ def resumen_mensual(request):
         "total_general_margen": total_general_margen,
         "total_general_ventas": total_general_ventas,
     })
-
-
-@login_required
-@transaction.atomic
-def venta_lote(request):
-    used_tokens = request.session.get("used_venta_tokens", [])
-    if request.method == "POST":
-        token = request.POST.get("idempotency_token", "")
-        if token in used_tokens:
-            messages.warning(request, "Este lote de ventas ya fue registrado.")
-            return redirect("dashboard")
-        formset = VentaLoteFormSet(request.POST)
-        if formset.is_valid():
-            # Validación intra-lote vía servicio único (Sprint 1)
-            valid_forms = []
-            items = []
-            for form in formset:
-                if not form.cleaned_data or form.cleaned_data.get("DELETE"):
-                    continue
-                cantidad = form.cleaned_data.get("cantidad")
-                if not cantidad:
-                    continue
-                valid_forms.append(form)
-                items.append((form.cleaned_data["producto"].id, cantidad))
-
-            faltantes = validar_stock_lote(items) if items else {}
-            if faltantes:
-                for f in valid_forms:
-                    pid = f.cleaned_data["producto"].id
-                    if pid in faltantes:
-                        info = faltantes[pid]
-                        f.add_error("cantidad", f"Stock insuficiente en lote. Disponible: {info['disponible']}, solicitado acumulado: {info['pedido']}")
-                productos = Producto.objects.filter(activo=True)
-                precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
-                return render(request, "core/venta_lote.html", {"formset": formset, "precios_productos": precios_productos, "idempotency_token": token})
-
-            ventas_creadas = 0
-            for form in valid_forms:
-                Venta.objects.create(
-                    producto=form.cleaned_data["producto"],
-                    cantidad=form.cleaned_data["cantidad"],
-                    precio_unitario=form.cleaned_data.get("precio_unitario") or Decimal("0.00"),
-                    cliente=form.cleaned_data.get("cliente") or "",
-                    nota=form.cleaned_data.get("nota") or "",
-                )
-                ventas_creadas += 1
-
-            if ventas_creadas > 0:
-                used_tokens.append(token)
-                if len(used_tokens) > 50:
-                    used_tokens = used_tokens[-50:]
-                request.session["used_venta_tokens"] = used_tokens
-                messages.success(request, f"Se registraron {ventas_creadas} ventas con éxito.")
-            else:
-                messages.warning(request, "No se registró ninguna venta.")
-            return redirect("dashboard")
-    else:
-        formset = VentaLoteFormSet()
-
-    productos = Producto.objects.filter(activo=True)
-    precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
-    idempotency_token = str(uuid.uuid4())
-    return render(request, "core/venta_lote.html", {"formset": formset, "precios_productos": precios_productos, "idempotency_token": idempotency_token})

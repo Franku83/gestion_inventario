@@ -7,7 +7,7 @@ from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
-from core.forms import VentaForm, VentaEditForm
+from core.forms import VentaEditForm
 
 class VentaAnuladaTests(TestCase):
     def setUp(self):
@@ -128,6 +128,7 @@ class VentaAnuladaTests(TestCase):
         )
 
         # Try to register another sale (stock is 0, should fail validation)
+        # Sprint 3: VentaForm (single) eliminado; se valida con VentaEditForm (mismos campos).
         form_data = {
             "cliente": "Cliente Nuevo",
             "producto": self.producto.id,
@@ -135,9 +136,8 @@ class VentaAnuladaTests(TestCase):
             "precio_unitario": Decimal("100.00"),
             "a_plazos": False,
             "fecha": timezone.now().strftime("%Y-%m-%dT%H:%M"),
-            "pago_inicial": Decimal("0.00")
         }
-        form = VentaForm(data=form_data)
+        form = VentaEditForm(data=form_data)
         self.assertFalse(form.is_valid())
         self.assertIn("Stock insuficiente", form.errors["__all__"][0])
 
@@ -146,7 +146,7 @@ class VentaAnuladaTests(TestCase):
         venta.save()
 
         # Try to register the same sale again (stock is now 10 again, should be valid)
-        form = VentaForm(data=form_data)
+        form = VentaEditForm(data=form_data)
         self.assertTrue(form.is_valid())
 
     def test_anular_redirects_to_referrer(self):

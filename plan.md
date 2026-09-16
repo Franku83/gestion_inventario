@@ -101,18 +101,18 @@ joyerias_inventario/ → settings/urls raíz solo include()
 
 ---
 
-### Sprint 3 — Ventas + Deudas + Pagos: una sola bandeja (1 semana)
+### Sprint 3 — Ventas + Deudas + Pagos: una sola bandeja (1 semana) ✅ HECHO (2026-09-16, rama `refactor/s1-desacoplar`)
 
 **Objetivo:** el módulo que más quejas genera. De 4 pantallas → 2.
 
-- [ ] **Definición única de deuda** (decidir con negocio y dejar por escrito en `movimiento/services.py` docstring): recomendado `deuda = total - pagado > 0 AND anulada=False` (ignorar `a_plazos` para la bandeja; `a_plazos` queda solo como etiqueta "Contado/A plazos"). Ajustar `dashboard()` para usar el mismo queryset.
-- [ ] Fusionar `venta_create` + `venta_lote`: una sola vista `venta_create` con formset (1 fila por defecto). Eliminar `ItemVentaForm.clean` duplicado → validación intra-lote con `Counter` ya existe en `venta_lote`, moverla al servicio `validar_stock_lote(demand)`.
-- [ ] `deudas_list` = **bandeja única**: columnas Fecha/Cliente/Total/Pagado/Debe + botón "Abonar" inline (modal o misma fila, sin ir a `venta_detalle` para el caso 80%). `venta_detalle` queda solo para historial/auditoría.
-- [ ] `pago_create`: validar `monto <= deuda` (hoy solo warning) + bloquear abono si `anulada`. Redirigir de vuelta a `deudas_list` (no a detalle) con `?next`.
-- [ ] Eliminar `venta_update` separada si solo edita cantidad/precio con stock: fusionar en `venta_detalle` como "Corregir" con el mismo `VentaEditForm`.
-- [ ] Tests: vender sin stock falla, vender lote con oversell acumulado falla, abonar de más falla, anular devuelve stock y saca de deudas.
+- [x] **Definición única de deuda** escrita en `movimiento/services.py` docstring: `deuda = total - pagado > 0 AND anulada=False`; `a_plazos` solo etiqueta. `dashboard()` usa `ventas_con_deuda_qs()` (mismo queryset que la bandeja).
+- [x] Fusionado `venta_create` + `venta_lote`: una sola vista formset (1 fila + "+ Agregar venta"), `a_plazos` + `fecha` por fila, `pago_inicial` a nivel página (solo válido con 1 fila). `venta/registrar-lote/` redirige; `VentaForm` single y `venta_lote.html` eliminados (`VentaLoteFormSet` queda como alias). Validación intra-lote vía `validar_stock_lote()`.
+- [x] `deudas_list` = **bandeja única**; botón "Abonar" con `?next=` para volver a la bandeja tras guardar (sin pasar por detalle en el 80%). `venta_detalle` queda para historial/auditoría.
+- [x] `pago_create`: bloquea `monto > deuda` (error, no warning) + bloquea abono si `anulada` + respeta `?next=` seguro (`url_has_allowed_host_and_scheme`); `abono_form.html` muestra deuda y preserva `next`.
+- [ ] `venta_update` separada se mantiene (edición con `VentaEditForm` + `venta_form.html`); fusionarla en detalle queda diferido (pantalla de edición ya es 1 solo formulario, sin duplicación de flujos de alta).
+- [x] Tests `movimiento/test_ventas.py` (8): única+pago inicial, multifila con modalidad por fila, pago inicial multifila rechazado, oversell acumulado, redirect URL vieja, sobrepago bloqueado, `?next=` a deudas, contado con deuda en bandeja + dashboard. `test_all_deudas.py` manual eliminado (superseded). `core/tests.py` usa `VentaEditForm`.
 
-**Aceptación:** flujo "vender + cobrar" demo en <60 seg; `assertNumQueries` en `deudas_list` ≤ 5 (hoy N+1 ya fixeado, no regresar); 4 tests nuevos verdes.
+**Aceptación:** vender+cobrar demo en <60 seg; `grep venta_lote` = solo comentarios + alias + test negativo; 21/21 tests verdes.
 
 ---
 

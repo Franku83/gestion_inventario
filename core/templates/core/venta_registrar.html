@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% block title %}Registrar Ventas en Lote{% endblock %}
+{% block title %}Registrar venta{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto px-4 py-8">
@@ -7,8 +7,8 @@
 
     <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h1 class="text-xl font-semibold text-slate-900">Registrar Ventas en Lote</h1>
-        <p class="text-sm text-slate-500 mt-1">Registra varias ventas a la vez. El precio se auto-completa al seleccionar un producto.</p>
+        <h1 class="text-xl font-semibold text-slate-900">Registrar venta</h1>
+        <p class="text-sm text-slate-500 mt-1">Una o varias ventas. El precio se auto-completa al seleccionar un producto.</p>
       </div>
       <button type="button" id="addRowBtn"
               class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition">
@@ -16,7 +16,7 @@
       </button>
     </div>
 
-    <form method="post" id="venta-lote-form" class="p-6 space-y-3">
+    <form method="post" id="venta-form" class="p-6 space-y-3">
       {% csrf_token %}
       <input type="hidden" name="idempotency_token" value="{{ idempotency_token }}">
       {{ formset.management_form }}
@@ -32,7 +32,7 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div class="sm:col-span-2 lg:col-span-2">
               <label class="block text-xs font-medium text-slate-600 mb-1">Producto <span class="text-red-500">*</span></label>
               {{ form.producto }}
@@ -58,11 +58,24 @@
               <label class="block text-xs font-medium text-slate-600 mb-1">Cliente</label>
               {{ form.cliente }}
             </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Fecha</label>
+              {{ form.fecha }}
+              {% if form.fecha.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ form.fecha.errors|striptags }}</p>
+              {% endif %}
+            </div>
           </div>
 
-          <div class="mt-3">
-            <label class="block text-xs font-medium text-slate-600 mb-1">Nota</label>
-            {{ form.nota }}
+          <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Nota</label>
+              {{ form.nota }}
+            </div>
+            <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 pb-2">
+              {{ form.a_plazos }}
+              A plazos
+            </label>
           </div>
 
           {% if form.non_field_errors %}
@@ -78,10 +91,17 @@
         </div>
       {% endif %}
 
+      <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <label class="block text-sm font-medium text-slate-700 mb-1">Pago inicial (opcional, solo con 1 venta)</label>
+        <input type="number" name="pago_inicial" value="{{ pago_inicial|default:'0.00' }}" step="0.01" min="0"
+               class="form-control w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm">
+        <p class="text-xs text-slate-500 mt-1">Si registras una sola venta, puedes dejar un abono de una vez.</p>
+      </div>
+
       <div class="flex items-center gap-3 pt-4 border-t border-slate-100">
         <button type="submit" id="btn-submit"
                 class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 transition">
-          Guardar todas las ventas
+          Guardar venta
         </button>
         <a href="{% url 'dashboard' %}"
            class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
@@ -100,7 +120,7 @@
   const addBtn    = document.getElementById('addRowBtn');
   const totalForms = document.getElementById('id_form-TOTAL_FORMS');
   const precios   = JSON.parse(document.getElementById("precios-productos-data").textContent);
-  const form      = document.getElementById("venta-lote-form");
+  const form      = document.getElementById("venta-form");
   const btn       = document.getElementById("btn-submit");
 
   // Deshabilitar botón al enviar
@@ -154,8 +174,10 @@
     clone.querySelectorAll('input[type="text"], input[type="number"]').forEach(inp => {
       if (inp.name && inp.name.includes('cantidad')) inp.value = '1';
       else if (inp.name && inp.name.includes('precio')) inp.value = '0.00';
+      else if (inp.name && inp.name.includes('fecha')) inp.value = '';
       else inp.value = '';
     });
+    clone.querySelectorAll('input[type="checkbox"]').forEach(chk => chk.checked = false);
     clone.querySelectorAll('select').forEach(sel => sel.selectedIndex = 0);
     clone.querySelectorAll('.text-red-600').forEach(err => err.remove());
 

@@ -1,8 +1,10 @@
-"""Única fuente de verdad para stock y deudas.
+"""Única fuente de verdad para stock y deudas (Sprint 1-3).
+
+DEFINICIÓN ÚNICA DE DEUDA (decidida Sprint 3, vale para bandeja + dashboard):
+    deuda = (precio_unitario * cantidad) - SUM(pagos) > 0 AND anulada=False.
+`a_plazos` es solo etiqueta Contado/A plazos, NO filtra la bandeja.
 
 Stock = SUM(Movimiento IN no anulada) - SUM(Venta no anulada).
-Deuda = total - pagado > 0 AND anulada=False (ignora a_plazos para la bandeja;
-a_plazos queda solo como etiqueta Contado/A plazos).
 """
 from collections import Counter
 from decimal import Decimal

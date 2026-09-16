@@ -8,12 +8,13 @@
       <h1 class="text-xl font-semibold text-slate-900">Registrar abono</h1>
       <p class="text-sm text-slate-500 mt-1">
         Cliente: <span class="font-medium text-slate-700">{{ venta.cliente|default:"(sin nombre)" }}</span>
-        · Total: <span class="font-medium text-slate-700">{{ venta.total }}</span>
-        · Pagado: <span class="font-medium text-slate-700">{{ venta.pagado }}</span>
+        · Total: <span class="font-medium text-slate-700">${{ venta.total }}</span>
+        · Deuda: <span class="font-semibold text-amber-700">${{ deuda }}</span>
       </p>
 
       <form method="post" class="mt-6 space-y-4">
         {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>

@@ -12,9 +12,10 @@ urlpatterns = [
     # Sprint 2: eliminado compra_delete (borrado físico). Usar anular (reversible, conserva historial).
     path("compra/<int:pk>/anular/", views_compras.compra_anular, name="compra_anular"),
 
-    # ventas / deudas / pagos
+    # ventas / deudas / pagos — flujo único Sprint 3 (una sola pantalla Registrar venta)
     path("venta/registrar/", views_ventas.venta_create, name="venta_create"),
-    path("venta/registrar-lote/", views_ventas.venta_lote, name="venta_lote"),
+    # Compat: la vieja URL en lote redirige al flujo único
+    path("venta/registrar-lote/", RedirectView.as_view(pattern_name="venta_create", permanent=False)),
     path("venta/<int:pk>/editar/", views_ventas.venta_update, name="venta_update"),
     path("deudas/", views_ventas.deudas_list, name="deudas_list"),
     path("venta/<int:pk>/", views_ventas.venta_detalle, name="venta_detalle"),

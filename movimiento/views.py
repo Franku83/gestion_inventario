@@ -13,6 +13,5 @@ from movimiento.views_ventas import (  # noqa: F401
     venta_anular,
     venta_create,
     venta_detalle,
-    venta_lote,
     venta_update,
 )

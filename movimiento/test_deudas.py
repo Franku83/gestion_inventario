@@ -25,20 +25,39 @@ class DeudasFlowTests(TestCase):
         )
         Movimiento.objects.create(tipo="IN", producto=self.prod, cantidad=10, precio_unitario=Decimal("50.00"))
 
+    def _venta_formset_data(self, rows, pago_inicial="0.00"):
+        data = {
+            "form-TOTAL_FORMS": str(len(rows)),
+            "form-INITIAL_FORMS": "0",
+            "form-MIN_NUM_FORMS": "0",
+            "form-MAX_NUM_FORMS": "1000",
+            "idempotency_token": "test-token-deudas",
+            "pago_inicial": pago_inicial,
+        }
+        for i, r in enumerate(rows):
+            p = f"form-{i}-"
+            data[p + "producto"] = str(r.get("producto", ""))
+            data[p + "cantidad"] = str(r.get("cantidad", "1"))
+            data[p + "precio_unitario"] = str(r.get("precio_unitario", "0.00"))
+            data[p + "cliente"] = r.get("cliente", "")
+            if r.get("a_plazos"):
+                data[p + "a_plazos"] = "on"
+            data[p + "fecha"] = r.get("fecha", timezone.now().strftime("%Y-%m-%dT%H:%M"))
+            data[p + "nota"] = r.get("nota", "")
+        return data
+
     def test_flujo_deuda_completo(self):
         # 1. deudas lista OK
         self.assertEqual(self.client.get(reverse("deudas_list")).status_code, 200)
-        # 2. crear venta a plazos con pago inicial
-        r = self.client.post(reverse("venta_create"), data={
-            "cliente": "Cliente Test Deuda",
-            "fecha": timezone.now().strftime("%Y-%m-%dT%H:%M"),
-            "producto": self.prod.id, "cantidad": 2,
-            "precio_unitario": Decimal("120.00"), "a_plazos": True,
-            "nota": "Nota prueba", "pago_inicial": Decimal("40.00"),
-        })
+        # 2. crear venta a plazos con pago inicial (Sprint 3: flujo único formset)
+        r = self.client.post(reverse("venta_create"), data=self._venta_formset_data([
+            {"producto": self.prod.id, "cantidad": 2, "precio_unitario": "120.00",
+             "cliente": "Cliente Test Deuda", "a_plazos": True, "nota": "Nota prueba"},
+        ], pago_inicial="40.00"))
         self.assertIn(r.status_code, (302, 200))
         venta = Venta.objects.get(cliente="Cliente Test Deuda")
         self.assertEqual(venta.total, Decimal("240.00"))
+        self.assertTrue(venta.a_plazos)
         # 3. aparece en deudas
         self.assertContains(self.client.get(reverse("deudas_list")), "Cliente Test Deuda")
         # 4. detalle OK

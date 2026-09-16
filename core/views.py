@@ -59,17 +59,14 @@ def dashboard(request):
     for v in Venta.objects.filter(anulada=False).only("cantidad", "precio_unitario"):
         dinero_vendido_usd += Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0))
 
-    # Dinero deuda: solo a_plazos=True (definición negocio)
-    dinero_deuda_usd = Decimal("0.00")
-    pagos_map = {
-        r["venta_id"]: Decimal(str(r["pagado"] or "0.00"))
-        for r in PagoVenta.objects.values("venta_id").annotate(pagado=Coalesce(Sum("monto"), Decimal("0.00")))
-    }
-    for v in Venta.objects.filter(a_plazos=True, anulada=False).only("id", "cantidad", "precio_unitario"):
-        total = Decimal(str(v.precio_unitario or 0)) * Decimal(int(v.cantidad or 0))
-        deuda = total - pagos_map.get(v.id, Decimal("0.00"))
-        if deuda > 0:
-            dinero_deuda_usd += deuda
+    # Dinero deuda: DEFINICIÓN ÚNICA Sprint 3 — misma que la bandeja
+    # (ventas_con_deuda_qs): deuda = total - pagado > 0, no anuladas.
+    # `a_plazos` es solo etiqueta Contado/A plazos, no filtro.
+    from movimiento.services import ventas_con_deuda_qs
+    dinero_deuda_usd = sum(
+        (Decimal(str(v.deuda_calc or "0.00")) for v in ventas_con_deuda_qs()),
+        Decimal("0.00"),
+    )
 
     # Ganancia estimada
     ganancia_usd = Decimal("0.00")
@@ -198,7 +195,8 @@ from movimiento.views_compras import (  # noqa: F401,E402
     compra_list,
     compra_update,
 )
-# Ventas + Deudas + Pagos → vive en movimiento/views_ventas.py (Sprint 1). Re-export compat.
+# Ventas + Deudas + Pagos → vive en movimiento/views_ventas.py (Sprint 1-3). Re-export compat.
+# Sprint 3: venta_lote eliminado (flujo único venta_create).
 from movimiento.views_ventas import (  # noqa: F401,E402
     deudas_list,
     pago_create,
@@ -207,6 +205,5 @@ from movimiento.views_ventas import (  # noqa: F401,E402
     venta_anular,
     venta_create,
     venta_detalle,
-    venta_lote,
     venta_update,
 )

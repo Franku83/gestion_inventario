@@ -37,7 +37,7 @@
                    class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                   Ver
                 </a>
-                <a href="{% url 'pago_create' v.id %}"
+                <a href="{% url 'pago_create' v.id %}?next={{ request.get_full_path|urlencode }}"
                    class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                   Abonar
                 </a>

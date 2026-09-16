@@ -45,54 +45,8 @@ class CompraForm(forms.ModelForm):
 CompraEditForm = CompraForm  # compat Sprint 1
 
 
-class VentaForm(forms.ModelForm):
-    pago_inicial = forms.DecimalField(max_digits=12, decimal_places=2, required=False, initial=Decimal("0.00"))
-
-    class Meta:
-        model = Venta
-        fields = ["cliente", "producto", "cantidad", "precio_unitario", "a_plazos", "fecha", "nota"]
-        widgets = {
-            'fecha': forms.DateTimeInput(
-                format='%Y-%m-%dT%H:%M',
-                attrs={'type': 'datetime-local', 'class': 'form-control'}
-            )
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _bootstrapify(self)
-        if not self.instance.pk:
-            # Poner la hora local actual con formato adecuado para datetime-local
-            self.initial['fecha'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%dT%H:%M')
-
-    def clean_precio_unitario(self):
-        p = self.cleaned_data.get("precio_unitario")
-        if p is None:
-            return Decimal("0.00")
-        if p < 0:
-            raise ValidationError("El precio no puede ser negativo.")
-        return p
-
-    def clean_pago_inicial(self):
-        p = self.cleaned_data.get("pago_inicial")
-        if p is None:
-            return Decimal("0.00")
-        if p < 0:
-            raise ValidationError("El pago no puede ser negativo.")
-        return p
-
-    def clean(self):
-        cleaned = super().clean()
-        producto = cleaned.get("producto")
-        cantidad = cleaned.get("cantidad")
-
-        if producto and cantidad:
-            stock = get_stock_map([producto.id]).get(producto.id, 0)
-            if cantidad > stock:
-                raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
-        return cleaned
-
-
+# Sprint 3: VentaForm (single) eliminado — el flujo único es el formset
+# (ItemVentaForm + pago_inicial a nivel de página, solo válido con 1 fila).
 class VentaEditForm(forms.ModelForm):
     class Meta:
         model = Venta
@@ -217,6 +171,7 @@ CompraMultipleFormSet = CompraFormSet  # compat Sprint 1
 
 
 class ItemVentaForm(forms.Form):
+    """Una fila del flujo único de ventas (Sprint 3)."""
     producto = forms.ModelChoiceField(
         queryset=Producto.objects.filter(activo=True).order_by("nombre"),
         label="Producto",
@@ -226,11 +181,27 @@ class ItemVentaForm(forms.Form):
         max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio venta"
     )
     cliente = forms.CharField(required=False, max_length=150, label="Cliente")
+    a_plazos = forms.BooleanField(required=False, initial=False, label="A plazos")
+    fecha = forms.DateTimeField(
+        required=False, label="Fecha",
+        widget=forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local', 'class': 'form-control'}),
+        input_formats=['%Y-%m-%dT%H:%M'],
+    )
     nota = forms.CharField(required=False, max_length=255, label="Nota")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _bootstrapify(self)
+        if not self.initial.get('fecha'):
+            self.initial['fecha'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%dT%H:%M')
+
+    def clean_precio_unitario(self):
+        p = self.cleaned_data.get("precio_unitario")
+        if p is None:
+            return Decimal("0.00")
+        if p < 0:
+            raise ValidationError("El precio no puede ser negativo.")
+        return p
 
     def clean(self):
         cleaned = super().clean()
@@ -243,4 +214,5 @@ class ItemVentaForm(forms.Form):
         return cleaned
 
 
-VentaLoteFormSet = forms.formset_factory(ItemVentaForm, extra=1, can_delete=True)
+VentaFormSet = forms.formset_factory(ItemVentaForm, extra=1, can_delete=True)
+VentaLoteFormSet = VentaFormSet  # compat Sprint 1-2
