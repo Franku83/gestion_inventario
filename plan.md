@@ -131,18 +131,18 @@ joyerias_inventario/ → settings/urls raíz solo include()
 
 ---
 
-### Sprint 5 — Hardening + Deploy limpio (0.5 semana)
+### Sprint 5 — Hardening + Deploy limpio (0.5 semana) ✅ HECHO (2026-09-16, rama `refactor/s1-desacoplar`)
 
 **Objetivo:** dejarlo production-ready.
 
-- [ ] `manage.py check --deploy` en 0 warnings bloqueantes (HSTS, SSL redirect, cookies secure cuando `DEBUG=0`).
-- [ ] `SECRET_KEY` + `ALLOWED_HOSTS` + `DATABASE_URL` solo por env en Railway; verificar `Procfile` corre `migrate` antes de `gunicorn`.
-- [ ] Backup `db.sqlite3` → Postgres Railway como fuente única; documentar restore.
-- [ ] Limpieza: borrar `joyerias_inventario.zip`, `graphify-out/` del repo si se subió, `venv/`/`__pycache__` ignorados, `requirements.txt` sin `groq`.
-- [ ] README de 1 página: cómo correr, cómo vender/comprar/anular, cómo deployar.
-- [ ] Tag `v2.0-refactor` y changelog.
+- [x] `check --deploy` en **0 issues** con env prod-like (`SECURE_SSL_REDIRECT=1` tras proxy header, resto ya existía).
+- [x] `SECRET_KEY`/`ALLOWED_HOSTS`/`DATABASE_URL` solo por env (falla en prod si faltan); `Procfile` = `collectstatic + migrate + gunicorn`; storage Whitenoise con manifest (verificado `collectstatic` OK); logging a consola en prod.
+- [x] `.env.example` documentado (generar clave, variables Railway, `DATABASE_URL` del plugin Postgres); restore SQLite→Postgres documentado en README (dumpdata/loaddata; ejecutar por operador).
+- [x] Limpieza: `joyerias_inventario.zip` fuera del repo (`git rm`); `graphify-out/`, `venv/`, `__pycache__`, `db.sqlite3`, `staticfiles/` ignorados y sin rastros en git; `requirements.txt` sin `groq`.
+- [x] README de 1 página + CHANGELOG con rupturas intencionales.
+- [x] Tag `v2.0-refactor`.
 
-**Aceptación:** deploy verde en Railway, `check --deploy` OK con `DEBUG=0`, README merged.
+**Aceptación:** `check --deploy` OK con `DEBUG=0`; tests 27/27; pendiente operador: definir vars en Railway + deploy + migración de datos (pasos en README).
 
 ---
 
