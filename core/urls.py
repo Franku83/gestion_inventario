@@ -1,9 +1,10 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("inventario/", views.inventario, name="inventario"),
+    path("", include("proveedor.urls")),
 
     # compra
     path("compra/", views.compra_list, name="compra_list"),
@@ -13,13 +14,7 @@ urlpatterns = [
     path("compra/<int:pk>/eliminar/", views.compra_delete, name="compra_delete"),
     path("compra/<int:pk>/anular/", views.compra_anular, name="compra_anular"),
 
-    # proveedores
-    path("proveedores/", views.proveedor_list, name="proveedor_list"),
-    path("proveedores/crear/", views.proveedor_create, name="proveedor_create"),
-    path("proveedores/<int:pk>/editar/", views.proveedor_update, name="proveedor_update"),
-    path("proveedores/<int:pk>/eliminar/", views.proveedor_delete, name="proveedor_delete"),
-
-    # tipos
+    # tipos (Sprint 1: proveedor ya vive en proveedor/urls.py)
     path("tipos/", views.tipo_list, name="tipo_list"),
     path("tipos/crear/", views.tipo_create, name="tipo_create"),
     path("tipos/<int:pk>/editar/", views.tipo_update, name="tipo_update"),

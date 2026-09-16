@@ -18,6 +18,7 @@ from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
+from movimiento.services import get_stock_map, ventas_con_deuda_qs, validar_stock_lote, get_deuda
 from core.services import obtener_usd_bs_rate
 
 from .forms import (
@@ -36,28 +37,12 @@ from .forms import (
 logger = logging.getLogger(__name__)
 
 # =========================
-# Helpers
+# Helpers (compat: fuente real en movimiento/services.py — Sprint 1)
 # =========================
 
 def _get_stock_map(product_ids=None):
-    """Retorna dict producto_id -> stock disponible (int)."""
-    compras_qs = Movimiento.objects.filter(tipo="IN", anulada=False)
-    ventas_qs = Venta.objects.filter(anulada=False)
-    if product_ids is not None:
-        compras_qs = compras_qs.filter(producto_id__in=product_ids)
-        ventas_qs = ventas_qs.filter(producto_id__in=product_ids)
-    compras_map = {
-        r["producto_id"]: int(r["total_in"] or 0)
-        for r in compras_qs.values("producto_id").annotate(total_in=Sum("cantidad"))
-    }
-    ventas_map = {
-        r["producto_id"]: int(r["total_out"] or 0)
-        for r in ventas_qs.values("producto_id").annotate(total_out=Sum("cantidad"))
-    }
-    all_ids = set(compras_map) | set(ventas_map)
-    if product_ids is not None:
-        all_ids |= set(product_ids)
-    return {pid: compras_map.get(pid, 0) - ventas_map.get(pid, 0) for pid in all_ids}
+    """Wrapper compat. Usar movimiento.services.get_stock_map en código nuevo."""
+    return get_stock_map(product_ids)
 
 
 # =========================
@@ -217,56 +202,13 @@ def inventario(request):
 # Proveedores CRUD
 # =========================
 
-@login_required
-def proveedor_list(request):
-    qs = Proveedor.objects.all().order_by("nombre")
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    return render(request, "core/proveedor_list.html", {"proveedores": page_obj, "page_obj": page_obj, "is_paginated": page_obj.has_other_pages()})
-
-
-@login_required
-def proveedor_create(request):
-    if request.method == "POST":
-        form = ProveedorForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Proveedor creado.")
-            return redirect("proveedor_list")
-    else:
-        form = ProveedorForm()
-    return render(request, "core/form.html", {"form": form, "title": "Crear proveedor"})
-
-
-@login_required
-def proveedor_update(request, pk):
-    proveedor = get_object_or_404(Proveedor, pk=pk)
-    if request.method == "POST":
-        form = ProveedorForm(request.POST, instance=proveedor)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Proveedor actualizado.")
-            return redirect("proveedor_list")
-    else:
-        form = ProveedorForm(instance=proveedor)
-    return render(request, "core/form.html", {"form": form, "title": "Editar proveedor"})
-
-
-@login_required
-def proveedor_delete(request, pk):
-    proveedor = get_object_or_404(Proveedor, pk=pk)
-    if request.method == "POST":
-        try:
-            proveedor.delete()
-            messages.success(request, "Proveedor eliminado.")
-            return redirect("proveedor_list")
-        except ProtectedError:
-            messages.error(request, "No se puede eliminar este proveedor porque tiene productos/compras asociadas.")
-            return redirect("proveedor_list")
-        except Exception as e:
-            messages.error(request, f"Error eliminando proveedor: {e}")
-            return redirect("proveedor_list")
-    return render(request, "core/confirm_delete.html", {"obj": proveedor, "title": "Eliminar proveedor"})
+# Proveedores CRUD → vive en proveedor/views.py (Sprint 1). Re-export compat.
+from proveedor.views import (  # noqa: F401,E402
+    proveedor_list,
+    proveedor_create,
+    proveedor_update,
+    proveedor_delete,
+)
 
 
 # =========================
@@ -534,23 +476,8 @@ def venta_update(request, pk):
 
 @login_required
 def deudas_list(request):
-    # Optimizado: sin N+1, con annotate y cálculo en DB
-    # Definición: cualquier venta con deuda>0 (independiente de a_plazos), excluyendo anuladas
-    from django.db.models import Exists
-
-    # Pagado por venta
-    pagos_sub = PagoVenta.objects.filter(venta=OuterRef("pk")).values("venta").annotate(s=Sum("monto")).values("s")
-    ventas = (
-        Venta.objects.filter(anulada=False)
-        .select_related("producto", "producto__proveedor")
-        .annotate(
-            total_calc=F("precio_unitario") * F("cantidad"),
-            pagado_calc=Coalesce(Subquery(pagos_sub, output_field=DecimalField(max_digits=18, decimal_places=2)), Value(Decimal("0.00"))),
-        )
-        .annotate(deuda_calc=F("total_calc") - F("pagado_calc"))
-        .filter(deuda_calc__gt=0)
-        .order_by("-fecha")
-    )
+    # Fuente única: movimiento.services.ventas_con_deuda_qs() (deuda>0, no anuladas, sin N+1)
+    ventas = ventas_con_deuda_qs()
     paginator = Paginator(ventas, 25)
     page_obj = paginator.get_page(request.GET.get("page"))
     return render(request, "core/deudas_list.html", {"ventas": page_obj, "page_obj": page_obj, "is_paginated": page_obj.has_other_pages()})
@@ -713,9 +640,9 @@ def venta_lote(request):
             return redirect("dashboard")
         formset = VentaLoteFormSet(request.POST)
         if formset.is_valid():
-            # Validación intra-lote: sumar cantidades por producto y comparar con stock
-            demand = Counter()
+            # Validación intra-lote vía servicio único (Sprint 1)
             valid_forms = []
+            items = []
             for form in formset:
                 if not form.cleaned_data or form.cleaned_data.get("DELETE"):
                     continue
@@ -723,23 +650,18 @@ def venta_lote(request):
                 if not cantidad:
                     continue
                 valid_forms.append(form)
-                demand[form.cleaned_data["producto"].id] += cantidad
+                items.append((form.cleaned_data["producto"].id, cantidad))
 
-            if demand:
-                stock_map = _get_stock_map(list(demand.keys()))
-                lote_ok = True
-                for pid, needed in demand.items():
-                    if needed > stock_map.get(pid, 0):
-                        lote_ok = False
-                        # Añadir error a cada form de ese producto
-                        for f in valid_forms:
-                            if f.cleaned_data["producto"].id == pid:
-                                f.add_error("cantidad", f"Stock insuficiente en lote. Disponible: {stock_map.get(pid,0)}, solicitado acumulado: {needed}")
-                if not lote_ok:
-                    # Re-render con errores
-                    productos = Producto.objects.filter(activo=True)
-                    precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
-                    return render(request, "core/venta_lote.html", {"formset": formset, "precios_productos": precios_productos, "idempotency_token": token})
+            faltantes = validar_stock_lote(items) if items else {}
+            if faltantes:
+                for f in valid_forms:
+                    pid = f.cleaned_data["producto"].id
+                    if pid in faltantes:
+                        info = faltantes[pid]
+                        f.add_error("cantidad", f"Stock insuficiente en lote. Disponible: {info['disponible']}, solicitado acumulado: {info['pedido']}")
+                productos = Producto.objects.filter(activo=True)
+                precios_productos = {p.id: float(p.precio_venta_unitario) for p in productos}
+                return render(request, "core/venta_lote.html", {"formset": formset, "precios_productos": precios_productos, "idempotency_token": token})
 
             ventas_creadas = 0
             for form in valid_forms:

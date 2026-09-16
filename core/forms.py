@@ -7,6 +7,7 @@ from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
+from movimiento.services import get_stock_map
 
 
 def _bootstrapify(form: forms.Form):
@@ -20,14 +21,8 @@ def _bootstrapify(form: forms.Form):
     return form
 
 
-class ProveedorForm(forms.ModelForm):
-    class Meta:
-        model = Proveedor
-        fields = ["nombre", "telefono", "nota"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _bootstrapify(self)
+# Sprint 1: fuente real en proveedor/forms.py. Re-export compat.
+from proveedor.forms import ProveedorForm  # noqa: F401
 
 
 class TipoJoyaForm(forms.ModelForm):
@@ -112,10 +107,7 @@ class VentaForm(forms.ModelForm):
         cantidad = cleaned.get("cantidad")
 
         if producto and cantidad:
-            entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            salidas = Venta.objects.filter(producto=producto, anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            stock = int(entradas) - int(salidas)
-
+            stock = get_stock_map([producto.id]).get(producto.id, 0)
             if cantidad > stock:
                 raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
         return cleaned
@@ -150,15 +142,10 @@ class VentaEditForm(forms.ModelForm):
         cantidad = cleaned.get("cantidad")
 
         if producto and cantidad:
-            entradas = Movimiento.objects.filter(producto=producto, tipo="IN", anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            salidas = Venta.objects.filter(producto=producto, anulada=False).aggregate(s=Sum("cantidad"))["s"] or 0
-            
-            # Si estamos editando y no cambió de producto, la cantidad actual de la venta no debería contarse en las salidas.
-            if self.instance.pk and self.instance.producto == producto:
-                salidas -= self.instance.cantidad
-                
-            stock = int(entradas) - int(salidas)
-
+            stock = get_stock_map([producto.id]).get(producto.id, 0)
+            # Si estamos editando y no cambió de producto, la cantidad actual no cuenta como salida.
+            if self.instance.pk and self.instance.producto_id == producto.id and not self.instance.anulada:
+                stock += self.instance.cantidad
             if cantidad > stock:
                 raise ValidationError(f"Stock insuficiente. Disponible: {stock}")
         return cleaned
@@ -337,17 +324,9 @@ class ItemVentaForm(forms.Form):
         producto = cleaned.get("producto")
         cantidad = cleaned.get("cantidad")
         if producto and cantidad:
-            entradas = Movimiento.objects.filter(
-                producto=producto, tipo="IN", anulada=False
-            ).aggregate(s=Sum("cantidad"))["s"] or 0
-            salidas = Venta.objects.filter(
-                producto=producto, anulada=False
-            ).aggregate(s=Sum("cantidad"))["s"] or 0
-            stock = int(entradas) - int(salidas)
+            stock = get_stock_map([producto.id]).get(producto.id, 0)
             if cantidad > stock:
-                self.add_error(
-                    "cantidad", f"Stock insuficiente. Disponible: {stock}"
-                )
+                self.add_error("cantidad", f"Stock insuficiente. Disponible: {stock}")
         return cleaned
 
 

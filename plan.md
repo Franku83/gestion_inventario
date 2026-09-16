@@ -1,0 +1,203 @@
+# Plan de Refactorización — Joyerías Inventario (Django)
+
+> Objetivo: hacerlo **más práctico** sin reescribir a TypeScript.
+> "Práctico" = vender en ≤2 clics, comprar en ≤2 clics, ver deudas en 1 sola bandeja, stock siempre confiable.
+
+## 0. Estado actual (verificado 2026-09-16)
+
+| Punto | Evidencia | Problema |
+|---|---|---|
+| God module | `core/views.py:770` con 25 vistas, `core/forms.py:354` con 10 forms | Todo acoplado en `core`; `proveedor/`, `producto/`, `movimiento/`, `tipologia/` tienen `views.py` de 3 líneas (vacías) |
+| Stock frágil | `core/views.py:42` `_get_stock_map()` + `Subquery(OuterRef)` en `inventario()` + validación duplicada en `VentaForm`, `VentaEditForm`, `ItemVentaForm`, `venta_create`, `venta_update`, `venta_lote` | 6 lugares calculan stock distinto; bug histórico JOIN cartesiano (`554ec46`) puede regresar |
+| Deuda ambigua | `dashboard()` filtra `a_plazos=True`; `deudas_list()` filtra `deuda_calc__gt=0` | Dos definiciones de "deuda" → confusión usuario |
+| Flujos duplicados compra | `compra_create` + `compra_multiple` + `CompraUnificadaForm` + `CompraEditForm` + `compra_list.html` + `compra_multiple.html` + `compra_unificada.html` | Usuario no sabe cuál usar |
+| Flujos duplicados venta | `venta_create` + `venta_lote` + `venta_form.html` + `venta_lote.html` + `deudas_list.html` + `venta_detalle.html` + `abono_form.html` | Vender, ver deuda, abonar son 3 pantallas separadas |
+| Templates | 19 en `core/templates/core/`, Tailwind por CDN en `base.html`, sin componentes ni paginación uniforme | Mantenimiento caro, UI inconsistente |
+| Tests | Solo `core/tests.py` (3 tests `VentaAnuladaTests`) + `test_all_deudas.py` manual fuera de suite | Sin red de seguridad para refactorizar |
+| Config | `settings.py:136`, `dj-database-url` + SQLite local, `Procfile` Railway, `.env` + `.env.example` | OK base, falta CI y `check --deploy` limpio |
+
+**Regla de oro del refactor:** ningún sprint cambia el modelo de datos salvo que se diga explícito. Primero mover código, después simplificar UX, al final optimizar.
+
+## 1. Arquitectura objetivo
+
+```
+core/         → solo shell: dashboard, inventario (lectura), base.html, middleware, services/tasa USD
+proveedor/    → CRUD proveedor (views+forms+urls+templates propios)
+tipologia/    → CRUD tipo joya (idem)
+producto/     → CRUD producto + stock read-model
+movimiento/   → compras (IN) + ventas + pagos + deudas (TODO lo transaccional)
+joyerias_inventario/ → settings/urls raíz solo include()
+```
+
+```
+                 ┌─────────────┐
+                 │  dashboard  │  (core, solo lectura KPIs)
+                 └──────┬──────┘
+                        │
+┌───────────┐  ┌────────┴────────┐  ┌─────────────┐
+│ producto/ │──│ stock_service   │──│ movimiento/ │
+│ +proveedor│  │ (ÚNICA fuente)  │  │ compra/venta│
+│ +tipologia│  │ IN - Venta no   │  │ pago/deuda  │
+└───────────┘  │ anulada         │  └─────────────┘
+               └─────────────────┘
+```
+
+**Servicios únicos (nuevo `movimiento/services.py`):**
+- `get_stock(producto_id) -> int` / `get_stock_map(ids) -> dict`
+- `get_deuda(venta) -> Decimal` / `ventas_con_deuda_qs()` (un solo queryset anotado)
+- Nada de IA. Nada de `Groq`. Ya eliminado en `a707ebc`.
+
+## 2. Sprints
+
+> Duración sugerida: 1 semana por sprint. Orden estrictamente secuencial.
+> Cada sprint termina con `manage.py check + manage.py test` en verde y demo de 10 min con un usuario real.
+
+---
+
+### Sprint 0 — Base segura (0.5 semana) [pre-requisito]
+
+**Objetivo:** poder refactorizar sin miedo.
+
+- [ ] Congelar scope: no nuevos features durante S0–S2. Solo fixes bloqueantes.
+- [ ] Mover `test_all_deudas.py` a `movimiento/tests/test_deudas.py` como `TestCase` real (hoy es script manual con `Client()`).
+- [ ] Agregar `core/tests/test_stock.py`: 3 casos (stock 10-3=7, anulada devuelve stock, lote no permite oversell).
+- [ ] CI mínimo: `.github/workflows/django.yml` → `pip install -r requirements.txt + check + test`.
+- [ ] `make` o `scripts/`: `check`, `test`, `migrate`, `run`.
+- [ ] Métrica base: anotar tiempo "registrar venta" (clics) y queries de `deudas_list` (django-debug-toolbar o `assertNumQueries`).
+
+**Archivos:** `.github/workflows/django.yml`, `movimiento/tests/*`, `core/tests/*`, `Makefile`
+**Aceptación:** `pytest`/`manage.py test` corre en CI; 6+ tests verdes; demo: mostrar CI en verde.
+
+---
+
+### Sprint 1 — Desacoplar dominio (1 semana) [el más importante]
+
+**Objetivo:** vaciar `core/views.py` (<150 líneas) moviendo cada vista a su app. Sin cambiar UX todavía.
+
+- [ ] Crear `proveedor/{views,forms,urls}.py` y mover `proveedor_list/create/update/delete` desde `core/`. `core/urls.py` → `include("proveedor.urls")`.
+- [ ] Igual para `tipologia/` (`tipo_*`) y `producto/` (`producto_*`).
+- [ ] Crear `movimiento/{views_compras,views_ventas,forms,urls}.py` y mover `compra_*`, `venta_*`, `pago_*`, `deudas_list`, `resumen_mensual`.
+- [ ] `core/` queda solo con: `dashboard`, `inventario`, `middleware.py`, `services.py` (tasa USD).
+- [ ] Crear `movimiento/services.py` con `get_stock_map()` (mover desde `core/views.py:42`) y hacer que **todas** las validaciones lo usen. Borrar cálculo duplicado en `VentaForm.clean`, `VentaEditForm.clean`, `ItemVentaForm.clean` → llamar al servicio.
+- [ ] Mover templates: `core/templates/core/proveedor_*.html` → `proveedor/templates/proveedor/` (idem tipos, producto, movimiento). Dejar re-export temporal si rompe `{% url %}` (no renombrar URLs en este sprint).
+- [ ] Verificar que `grep -n "from core" movimiento/ producto/` no importe vistas/forms de core.
+
+**Archivos:** `core/views.py`, `core/urls.py`, `*/views.py`, `*/urls.py`, `joyerias_inventario/urls.py`, `movimiento/services.py`
+**Aceptación:** `wc -l core/views.py` < 200; todas las URLs existentes responden igual (`test_all_deudas` sigue verde); cero imports circulares.
+
+---
+
+### Sprint 2 — Compras: un solo flujo (1 semana)
+
+**Objetivo:** de 3 formas de comprar → 1.
+
+- [ ] Decidir con usuario: ¿usan "lote" real o fue para carga inicial? Si <20% uso, **eliminar `compra_multiple`** (vista + `ItemCompraForm` + `compra_multiple.html`). Si sí lo usan, fusionar: una sola pantalla "Registrar compra" con formset de 1 fila por defecto + botón "+ agregar línea".
+- [ ] Unificar `CompraUnificadaForm` + `CompraEditForm` en `movimiento/forms.py::CompraForm` (una sola). `crear_producto` como checkbox colapsable, no pantalla aparte.
+- [ ] `compra_list`: búsqueda + paginación 25 (ya existe) + botón único "Registrar compra" + acción "Anular" (quitar "Eliminar" físico; solo anulación lógica para no romper stock histórico).
+- [ ] Borrar templates muertos (`compra_unificada.html` vs `compra_multiple.html` → dejar `compra_form.html` único).
+- [ ] Test: crear compra con producto nuevo, crear compra con existente, anular excluye de stock.
+
+**Aceptación:** registrar compra toma ≤2 clics desde navbar; `grep -r "compra_multiple" --include="*.py" --include="*.html"` = 0 (o 1 flujo documentado); tests S0 siguen verdes + 2 nuevos.
+
+---
+
+### Sprint 3 — Ventas + Deudas + Pagos: una sola bandeja (1 semana)
+
+**Objetivo:** el módulo que más quejas genera. De 4 pantallas → 2.
+
+- [ ] **Definición única de deuda** (decidir con negocio y dejar por escrito en `movimiento/services.py` docstring): recomendado `deuda = total - pagado > 0 AND anulada=False` (ignorar `a_plazos` para la bandeja; `a_plazos` queda solo como etiqueta "Contado/A plazos"). Ajustar `dashboard()` para usar el mismo queryset.
+- [ ] Fusionar `venta_create` + `venta_lote`: una sola vista `venta_create` con formset (1 fila por defecto). Eliminar `ItemVentaForm.clean` duplicado → validación intra-lote con `Counter` ya existe en `venta_lote`, moverla al servicio `validar_stock_lote(demand)`.
+- [ ] `deudas_list` = **bandeja única**: columnas Fecha/Cliente/Total/Pagado/Debe + botón "Abonar" inline (modal o misma fila, sin ir a `venta_detalle` para el caso 80%). `venta_detalle` queda solo para historial/auditoría.
+- [ ] `pago_create`: validar `monto <= deuda` (hoy solo warning) + bloquear abono si `anulada`. Redirigir de vuelta a `deudas_list` (no a detalle) con `?next`.
+- [ ] Eliminar `venta_update` separada si solo edita cantidad/precio con stock: fusionar en `venta_detalle` como "Corregir" con el mismo `VentaEditForm`.
+- [ ] Tests: vender sin stock falla, vender lote con oversell acumulado falla, abonar de más falla, anular devuelve stock y saca de deudas.
+
+**Aceptación:** flujo "vender + cobrar" demo en <60 seg; `assertNumQueries` en `deudas_list` ≤ 5 (hoy N+1 ya fixeado, no regresar); 4 tests nuevos verdes.
+
+---
+
+### Sprint 4 — Inventario + Dashboard prácticos (1 semana)
+
+**Objetivo:** que el dashboard responda "¿qué hago hoy?".
+
+- [ ] `inventario`: una tabla con `Producto | Stock | Costo prom | Precio | Acciones [Vender] [Comprar]`. Botón "Vender" pre-llena `venta_create?producto=X`. Quitar columna IA (ya hecho), agregar filtro `solo_stock` por defecto ON + búsqueda que mantenga `?q` al paginar.
+- [ ] `dashboard`: reducir a 4 KPIs que ya existen (`stock_usd`, `vendido_usd`, `deuda_usd`, `ganancia_usd`) + 2 listas accionables: "Top 5 deudas por cobrar" y "Top 5 stock inmovilizado" (stock>0 sin ventas 90 días). Borrar `resumen_negocio`/`respuesta_asistente` residuales si quedan en contexto.
+- [ ] `resumen_mensual`: mover cálculo a ORM (`TruncMonth` + `Sum`) en vez de loop Python; agregar filtro año con default actual.
+- [ ] `base.html`: navbar de 4 items máximo: `Dashboard | Inventario | Comprar | Vender/Deudas`. Colapsar Proveedores/Tipos en "Catálogos". Compilar Tailwind (salir de CDN) o pinnear versión.
+- [ ] Paginación uniforme 25 en todas las listas (verificar `producto_list`, `compra_list`, `deudas_list` ya la tienen).
+
+**Aceptación:** test con usuario: encuentra stock de un producto y lo vende sin ayuda; dashboard carga <1s con 1k ventas (medir con `django-debug-toolbar` o `time`).
+
+---
+
+### Sprint 5 — Hardening + Deploy limpio (0.5 semana)
+
+**Objetivo:** dejarlo production-ready.
+
+- [ ] `manage.py check --deploy` en 0 warnings bloqueantes (HSTS, SSL redirect, cookies secure cuando `DEBUG=0`).
+- [ ] `SECRET_KEY` + `ALLOWED_HOSTS` + `DATABASE_URL` solo por env en Railway; verificar `Procfile` corre `migrate` antes de `gunicorn`.
+- [ ] Backup `db.sqlite3` → Postgres Railway como fuente única; documentar restore.
+- [ ] Limpieza: borrar `joyerias_inventario.zip`, `graphify-out/` del repo si se subió, `venv/`/`__pycache__` ignorados, `requirements.txt` sin `groq`.
+- [ ] README de 1 página: cómo correr, cómo vender/comprar/anular, cómo deployar.
+- [ ] Tag `v2.0-refactor` y changelog.
+
+**Aceptación:** deploy verde en Railway, `check --deploy` OK con `DEBUG=0`, README merged.
+
+---
+
+## 3. Backlog priorizado (si sobra tiempo, en este orden)
+
+1. Búsqueda global navbar (`?q` busca producto/cliente/proveedor).
+2. Exportar `deudas_list` a CSV/Excel (cobranza en campo).
+3. Auditoría: quién creó/anuló cada venta (`created_by`, `anulada_por`, `anulada_at`).
+4. Permisos por rol (vendedor no puede anular/eliminar, solo admin).
+5. PWA offline lectura inventario (solo si piden mobile).
+
+## 4. Fuera de alcance (no hacer)
+
+- Reescribir a TypeScript/Next.js.
+- Reintroducir IA (descripciones, precios, riesgo).
+- Nuevo modelo `Stock` con triggers (mantener `IN - Venta` calculado; solo crear tabla si Sprint 4 demuestra lentitud real).
+- Multi-moneda contable (solo mostrar Bs referencial con tasa `ve.dolarapi`).
+- Facturación fiscal.
+
+## 5. Definition of Done (todos los sprints)
+
+- [ ] ` manage.py check` verde.
+- [ ] `manage.py test` verde (incluye tests nuevos del sprint).
+- [ ] Sin imports `core.views` desde apps de dominio.
+- [ ] Sin queries N+1 nuevas (`deudas_list`, `inventario`, `dashboard` con `select_related`/`annotate`).
+- [ ] URLs viejas siguen funcionando o tienen redirect (no 404 silenciosos).
+- [ ] Demo 10 min con usuario + 1 ajuste aplicado.
+
+## 6. Riesgos y mitigación
+
+| Riesgo | Mitigación |
+|---|---|
+| Romper cálculo stock al mover código | S0 congela tests de stock; S1 no cambia lógica, solo mueve archivos |
+| Usuarios apegados a "compra en lote" | S2 valida uso real antes de borrar; fusión en vez de borrado si hay duda |
+| Migraciones conflictivas | No tocar modelos en S1–S3; solo S4/S5 si hace falta, una migración por cambio |
+| Scope creep ("ya que estamos, agreguen X") | Backlog §3; todo lo demás a "Fuera de alcance" §4 |
+
+## 7. Comandos
+
+```bash
+# dev
+.venv/bin/python manage.py check
+.venv/bin/python manage.py test --verbosity=1
+.venv/bin/python manage.py runserver
+
+# verificar un sprint
+wc -l core/views.py                    # Sprint 1: <200
+grep -rn "compra_multiple" --include="*.py" --include="*.html" . | grep -v .venv
+grep -rn "from core" movimiento/ producto/ proveedor/ tipologia/ --include="*.py"
+.venv/bin/python manage.py check --deploy  # Sprint 5 con DEBUG=0
+```
+
+## 8. Cómo empezar mañana (checklist día 1)
+
+- [ ] Crear rama `refactor/s1-desacoplar`.
+- [ ] Crear `movimiento/services.py` con `get_stock_map` movido tal cual.
+- [ ] Mover `proveedor_*` (views+forms+urls+templates) y abrir PR chico solo de eso.
+- [ ] Mover `tipologia_*`, luego `producto_*`, luego `movimiento_*`, un PR por app.
+- [ ] Cerrar Sprint 1 cuando `core/views.py` solo tenga `dashboard` + `inventario`.
