@@ -190,13 +190,12 @@ from tipologia.views import tipo_list, tipo_create, tipo_update, tipo_delete  # 
 from producto.views import producto_list, producto_create, producto_update, producto_delete  # noqa: F401,E402
 
 
-# Compras (IN) → vive en movimiento/views_compras.py (Sprint 1). Re-export compat.
+# Compras (IN) → vive en movimiento/views_compras.py (Sprint 1-2). Re-export compat.
+# Sprint 2: compra_multiple y compra_delete eliminados (flujo único + solo anular).
 from movimiento.views_compras import (  # noqa: F401,E402
     compra_anular,
     compra_create,
-    compra_delete,
     compra_list,
-    compra_multiple,
     compra_update,
 )
 # Ventas + Deudas + Pagos → vive en movimiento/views_ventas.py (Sprint 1). Re-export compat.

@@ -1,13 +1,15 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from movimiento import views_compras, views_ventas
 
 urlpatterns = [
-    # compras
+    # compras — flujo único Sprint 2 (una sola pantalla Registrar compra)
     path("compra/", views_compras.compra_list, name="compra_list"),
     path("compra/registrar/", views_compras.compra_create, name="compra_create"),
-    path("compra/registrar-multiple/", views_compras.compra_multiple, name="compra_multiple"),
+    # Compat: la vieja URL en lote redirige al flujo único
+    path("compra/registrar-multiple/", RedirectView.as_view(pattern_name="compra_create", permanent=False)),
     path("compra/<int:pk>/editar/", views_compras.compra_update, name="compra_update"),
-    path("compra/<int:pk>/eliminar/", views_compras.compra_delete, name="compra_delete"),
+    # Sprint 2: eliminado compra_delete (borrado físico). Usar anular (reversible, conserva historial).
     path("compra/<int:pk>/anular/", views_compras.compra_anular, name="compra_anular"),
 
     # ventas / deudas / pagos

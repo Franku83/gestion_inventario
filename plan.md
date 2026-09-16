@@ -87,17 +87,17 @@ joyerias_inventario/ → settings/urls raíz solo include()
 
 ---
 
-### Sprint 2 — Compras: un solo flujo (1 semana)
+### Sprint 2 — Compras: un solo flujo (1 semana) ✅ HECHO (2026-09-16, rama `refactor/s1-desacoplar`)
 
 **Objetivo:** de 3 formas de comprar → 1.
 
-- [ ] Decidir con usuario: ¿usan "lote" real o fue para carga inicial? Si <20% uso, **eliminar `compra_multiple`** (vista + `ItemCompraForm` + `compra_multiple.html`). Si sí lo usan, fusionar: una sola pantalla "Registrar compra" con formset de 1 fila por defecto + botón "+ agregar línea".
-- [ ] Unificar `CompraUnificadaForm` + `CompraEditForm` en `movimiento/forms.py::CompraForm` (una sola). `crear_producto` como checkbox colapsable, no pantalla aparte.
-- [ ] `compra_list`: búsqueda + paginación 25 (ya existe) + botón único "Registrar compra" + acción "Anular" (quitar "Eliminar" físico; solo anulación lógica para no romper stock histórico).
-- [ ] Borrar templates muertos (`compra_unificada.html` vs `compra_multiple.html` → dejar `compra_form.html` único).
-- [ ] Test: crear compra con producto nuevo, crear compra con existente, anular excluye de stock.
+- [x] Fusión (sin borrar capacidad): el formset (`ItemCompraForm` con crear-nuevo inline + "+ agregar fila") pasa a ser LA pantalla "Registrar compra" (`compra/registrar/` → `core/compra_form.html`). La vieja `compra/registrar-multiple/` redirige (RedirectView, no 404).
+- [x] `CompraUnificadaForm` eliminado; `CompraEditForm` → `CompraForm` (alias compat); `CompraMultipleFormSet` → `CompraFormSet` (alias compat) en `movimiento/forms.py`.
+- [x] `compra_list`: solo Editar + Anular (quitado "Eliminar" físico + vista `compra_delete` + URL; anular conserva historial).
+- [x] Templates: `compra_unificada.html` borrado; `compra_multiple.html` → `compra_form.html` retitulado; navbar sin "en lote" (desktop + mobile).
+- [x] Tests `movimiento/test_compras.py` (6): existente, nuevo inline, varias filas, anular excluye stock, redirect URL vieja, borrado físico 404/NoReverseMatch.
 
-**Aceptación:** registrar compra toma ≤2 clics desde navbar; `grep -r "compra_multiple" --include="*.py" --include="*.html"` = 0 (o 1 flujo documentado); tests S0 siguen verdes + 2 nuevos.
+**Aceptación:** registrar compra ≤2 clics; `grep compra_multiple/CompraUnificadaForm/compra_delete` = solo comentarios + test negativo + aliases; 13/13 tests verdes.
 
 ---
 

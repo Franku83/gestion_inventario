@@ -22,7 +22,9 @@ def _bootstrapify(form: forms.Form):
     return form
 
 
-class CompraEditForm(forms.ModelForm):
+class CompraForm(forms.ModelForm):
+    """Formulario único de compra (crear/corregir una línea). Sprint 2."""
+
     class Meta:
         model = Movimiento
         fields = ["producto", "cantidad", "precio_unitario", "nota"]
@@ -38,6 +40,9 @@ class CompraEditForm(forms.ModelForm):
         if p < 0:
             raise ValidationError("El precio no puede ser negativo.")
         return p
+
+
+CompraEditForm = CompraForm  # compat Sprint 1
 
 
 class VentaForm(forms.ModelForm):
@@ -205,77 +210,10 @@ class ItemCompraForm(forms.Form):
                 self.add_error("producto", "Selecciona un producto.")
         return cleaned
 
-CompraMultipleFormSet = forms.formset_factory(ItemCompraForm, extra=1, can_delete=True)
-
-
-class CompraUnificadaForm(forms.Form):
-    crear_producto = forms.BooleanField(required=False, initial=False, label="Nuevo producto")
-
-    producto_existente = forms.ModelChoiceField(
-        queryset=Producto.objects.all().order_by("nombre"),
-        required=False,
-        label="Producto existente",
-    )
-
-    nombre = forms.CharField(required=False, max_length=140, label="Nombre del producto")
-    proveedor = forms.ModelChoiceField(queryset=Proveedor.objects.all().order_by("nombre"), required=False)
-    tipo = forms.ModelChoiceField(queryset=TipoJoya.objects.all().order_by("nombre"), required=False)
-    costo_unitario = forms.DecimalField(required=False, max_digits=12, decimal_places=2, initial=Decimal("0.00"))
-    precio_venta_unitario = forms.DecimalField(required=False, max_digits=12, decimal_places=2, initial=Decimal("0.00"))
-    activo = forms.BooleanField(required=False, initial=True)
-
-    cantidad = forms.IntegerField(min_value=1, label="Cantidad")
-    precio_unitario = forms.DecimalField(max_digits=12, decimal_places=2, initial=Decimal("0.00"), label="Precio unitario (compra)")
-    nota = forms.CharField(required=False, max_length=255)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _bootstrapify(self)
-        self.fields["nombre"].widget.attrs["placeholder"] = "Ej: Cadena corazón"
-        self.fields["nota"].widget.attrs["placeholder"] = "Opcional"
-
-    def clean(self):
-        cleaned = super().clean()
-        crear = cleaned.get("crear_producto")
-
-        if crear:
-            for f in ["nombre", "proveedor", "tipo"]:
-                if not cleaned.get(f):
-                    self.add_error(f, "Requerido para crear el producto.")
-        else:
-            if not cleaned.get("producto_existente"):
-                self.add_error("producto_existente", "Selecciona un producto o marca 'Nuevo producto'.")
-
-        pu = cleaned.get("precio_unitario")
-        if pu is not None and pu < 0:
-            self.add_error("precio_unitario", "No puede ser negativo.")
-
-        return cleaned
-
-    def save(self):
-        data = self.cleaned_data
-
-        if data["crear_producto"]:
-            producto = Producto.objects.create(
-                nombre=data["nombre"],
-                proveedor=data["proveedor"],
-                tipo=data["tipo"],
-                costo_unitario=data.get("costo_unitario") or Decimal("0.00"),
-                precio_venta_unitario=data.get("precio_venta_unitario") or Decimal("0.00"),
-                activo=data.get("activo") is True,
-            )
-        else:
-            producto = data["producto_existente"]
-
-        mov = Movimiento.objects.create(
-            tipo="IN",
-            producto=producto,
-            cantidad=data["cantidad"],
-            precio_unitario=data.get("precio_unitario") or Decimal("0.00"),
-            nota=data.get("nota") or "",
-        )
-
-        return producto, mov
+# Sprint 2: CompraUnificadaForm eliminado — el formset (ItemCompraForm) ya cubre
+# producto existente + creación inline. Flujo único: compra_create.
+CompraFormSet = forms.formset_factory(ItemCompraForm, extra=1, can_delete=True)
+CompraMultipleFormSet = CompraFormSet  # compat Sprint 1
 
 
 class ItemVentaForm(forms.Form):

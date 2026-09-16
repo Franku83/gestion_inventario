@@ -21,11 +21,12 @@ from tipologia.forms import TipoJoyaForm  # noqa: F401,E402
 from producto.forms import ProductoForm  # noqa: F401,E402
 
 
-# Sprint 1: fuente real en movimiento/forms.py. Re-export compat.
+# Sprint 1-2: fuente real en movimiento/forms.py. Re-export compat.
 from movimiento.forms import (  # noqa: F401,E402
     CompraEditForm,
+    CompraForm,
+    CompraFormSet,
     CompraMultipleFormSet,
-    CompraUnificadaForm,
     ItemCompraForm,
     ItemVentaForm,
     PagoVentaForm,
