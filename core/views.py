@@ -211,120 +211,12 @@ from proveedor.views import (  # noqa: F401,E402
 )
 
 
-# =========================
-# Tipos CRUD
-# =========================
+# Tipos CRUD → vive en tipologia/views.py (Sprint 1). Re-export compat.
+from tipologia.views import tipo_list, tipo_create, tipo_update, tipo_delete  # noqa: F401,E402
 
-@login_required
-def tipo_list(request):
-    qs = TipoJoya.objects.all().order_by("nombre")
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    return render(request, "core/tipo_list.html", {"tipos": page_obj, "page_obj": page_obj, "is_paginated": page_obj.has_other_pages()})
-
-
-@login_required
-def tipo_create(request):
-    if request.method == "POST":
-        form = TipoJoyaForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Tipo creado.")
-            return redirect("tipo_list")
-    else:
-        form = TipoJoyaForm()
-    return render(request, "core/form.html", {"form": form, "title": "Crear tipo"})
-
-
-@login_required
-def tipo_update(request, pk):
-    tipo = get_object_or_404(TipoJoya, pk=pk)
-    if request.method == "POST":
-        form = TipoJoyaForm(request.POST, instance=tipo)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Tipo actualizado.")
-            return redirect("tipo_list")
-    else:
-        form = TipoJoyaForm(instance=tipo)
-    return render(request, "core/form.html", {"form": form, "title": "Editar tipo"})
-
-
-@login_required
-def tipo_delete(request, pk):
-    tipo = get_object_or_404(TipoJoya, pk=pk)
-    if request.method == "POST":
-        try:
-            tipo.delete()
-            messages.success(request, "Tipo eliminado.")
-            return redirect("tipo_list")
-        except ProtectedError:
-            messages.error(request, "No se puede eliminar este tipo porque tiene productos asociados.")
-            return redirect("tipo_list")
-        except Exception as e:
-            messages.error(request, f"Error eliminando tipo: {e}")
-            return redirect("tipo_list")
-    return render(request, "core/confirm_delete.html", {"obj": tipo, "title": "Eliminar tipo"})
-
-
-# =========================
-# Productos CRUD
-# =========================
-
-@login_required
-def producto_list(request):
-    qs = Producto.objects.select_related("proveedor", "tipo").order_by("nombre")
-    # Annotate stock para listado de productos
-    total_in_sq = Movimiento.objects.filter(producto=OuterRef("pk"), tipo="IN", anulada=False).order_by().values("producto").annotate(total=Sum("cantidad")).values("total")
-    total_out_sq = Venta.objects.filter(producto=OuterRef("pk"), anulada=False).order_by().values("producto").annotate(total=Sum("cantidad")).values("total")
-    qs = qs.annotate(stock=Coalesce(Subquery(total_in_sq), Value(0), output_field=IntegerField()) - Coalesce(Subquery(total_out_sq), Value(0), output_field=IntegerField()))
-    paginator = Paginator(qs, 25)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    return render(request, "core/producto_list.html", {"productos": page_obj, "page_obj": page_obj, "is_paginated": page_obj.has_other_pages()})
-
-
-@login_required
-def producto_create(request):
-    if request.method == "POST":
-        form = ProductoForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Producto creado.")
-            return redirect("producto_list")
-    else:
-        form = ProductoForm()
-    return render(request, "core/form.html", {"form": form, "title": "Crear producto"})
-
-
-@login_required
-def producto_update(request, pk):
-    producto = get_object_or_404(Producto, pk=pk)
-    if request.method == "POST":
-        form = ProductoForm(request.POST, instance=producto)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Producto actualizado.")
-            return redirect("producto_list")
-    else:
-        form = ProductoForm(instance=producto)
-    return render(request, "core/form.html", {"form": form, "title": "Editar producto"})
-
-
-@login_required
-def producto_delete(request, pk):
-    producto = get_object_or_404(Producto, pk=pk)
-    if request.method == "POST":
-        try:
-            producto.delete()
-            messages.success(request, "Producto eliminado.")
-            return redirect("producto_list")
-        except ProtectedError:
-            messages.error(request, "No se puede eliminar este producto porque tiene compras/ventas asociadas.")
-            return redirect("producto_list")
-        except Exception as e:
-            messages.error(request, f"Error eliminando producto: {e}")
-            return redirect("producto_list")
-    return render(request, "core/confirm_delete.html", {"obj": producto, "title": "Eliminar producto"})
+# Productos CRUD → vive en producto/views.py (Sprint 1). Re-export compat.
+# Nota: hoy sin rutas en core/urls (pantalla muerta, solo vía inventario).
+from producto.views import producto_list, producto_create, producto_update, producto_delete  # noqa: F401,E402
 
 
 # =========================

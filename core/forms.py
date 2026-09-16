@@ -25,24 +25,9 @@ def _bootstrapify(form: forms.Form):
 from proveedor.forms import ProveedorForm  # noqa: F401
 
 
-class TipoJoyaForm(forms.ModelForm):
-    class Meta:
-        model = TipoJoya
-        fields = ["nombre"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _bootstrapify(self)
-
-
-class ProductoForm(forms.ModelForm):
-    class Meta:
-        model = Producto
-        fields = ["nombre", "proveedor", "tipo", "costo_unitario", "precio_venta_unitario", "activo"]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _bootstrapify(self)
+# Sprint 1: fuentes reales en tipologia/forms.py y producto/forms.py. Re-export compat.
+from tipologia.forms import TipoJoyaForm  # noqa: F401
+from producto.forms import ProductoForm  # noqa: F401
 
 
 class CompraEditForm(forms.ModelForm):

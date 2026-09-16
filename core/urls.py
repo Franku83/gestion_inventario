@@ -5,6 +5,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("inventario/", views.inventario, name="inventario"),
     path("", include("proveedor.urls")),
+    path("", include("tipologia.urls")),
 
     # compra
     path("compra/", views.compra_list, name="compra_list"),
@@ -14,13 +15,7 @@ urlpatterns = [
     path("compra/<int:pk>/eliminar/", views.compra_delete, name="compra_delete"),
     path("compra/<int:pk>/anular/", views.compra_anular, name="compra_anular"),
 
-    # tipos (Sprint 1: proveedor ya vive en proveedor/urls.py)
-    path("tipos/", views.tipo_list, name="tipo_list"),
-    path("tipos/crear/", views.tipo_create, name="tipo_create"),
-    path("tipos/<int:pk>/editar/", views.tipo_update, name="tipo_update"),
-    path("tipos/<int:pk>/eliminar/", views.tipo_delete, name="tipo_delete"),
-
-    # ventas / deudas / pagos
+    # ventas / deudas / pagos (Sprint 1: tipos vive en tipologia/urls.py)
     path("venta/registrar/", views.venta_create, name="venta_create"),
     path("venta/registrar-lote/", views.venta_lote, name="venta_lote"),
     path("venta/<int:pk>/editar/", views.venta_update, name="venta_update"),
