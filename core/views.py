@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -6,11 +7,13 @@ from django.core.paginator import Paginator
 from django.db.models import Sum, F, IntegerField, DecimalField, Value, OuterRef, Subquery
 from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render
+from django.utils import timezone
 
 from proveedor.models import Proveedor
 from tipologia.models import TipoJoya
 from producto.models import Producto
 from movimiento.models import Movimiento, Venta, PagoVenta
+from movimiento.services import ventas_con_deuda_qs
 from core.services import obtener_usd_bs_rate
 
 logger = logging.getLogger(__name__)
@@ -30,9 +33,11 @@ def dashboard(request):
         logger.warning("dashboard tasa error: %s", e)
         tasa = Decimal("0.00")
 
-    productos = Producto.objects.select_related("proveedor").order_by("nombre")[:15]
     total_productos = Producto.objects.count()
     total_proveedores = Proveedor.objects.count()
+
+    # Sprint 4: listas accionables — top 5 deudas por cobrar
+    top_deudas = list(ventas_con_deuda_qs()[:5])
 
     # Mapas compras/ventas
     compras_map = {
@@ -62,7 +67,6 @@ def dashboard(request):
     # Dinero deuda: DEFINICIÓN ÚNICA Sprint 3 — misma que la bandeja
     # (ventas_con_deuda_qs): deuda = total - pagado > 0, no anuladas.
     # `a_plazos` es solo etiqueta Contado/A plazos, no filtro.
-    from movimiento.services import ventas_con_deuda_qs
     dinero_deuda_usd = sum(
         (Decimal(str(v.deuda_calc or "0.00")) for v in ventas_con_deuda_qs()),
         Decimal("0.00"),
@@ -74,6 +78,20 @@ def dashboard(request):
         costo = Decimal(str(v.producto.costo_unitario or 0))
         precio = Decimal(str(v.precio_unitario or 0))
         ganancia_usd += (precio - costo) * Decimal(v.cantidad)
+
+    # Sprint 4: top 5 stock inmovilizado (stock>0 sin ventas en 90 días, por valor)
+    limite = timezone.now() - timedelta(days=90)
+    con_ventas_recientes = set(
+        Venta.objects.filter(anulada=False, fecha__gte=limite).values_list("producto_id", flat=True)
+    )
+    inmovilizado = []
+    for p in Producto.objects.select_related("proveedor").only("id", "nombre", "costo_unitario", "proveedor__nombre"):
+        stock_qty = compras_map.get(p.id, 0) - ventas_map.get(p.id, 0)
+        if stock_qty > 0 and p.id not in con_ventas_recientes:
+            costo = Decimal(str(p.costo_unitario or 0))
+            inmovilizado.append({"producto": p, "stock": stock_qty, "valor": costo * Decimal(stock_qty)})
+    inmovilizado.sort(key=lambda r: r["valor"], reverse=True)
+    top_inmovilizado = inmovilizado[:5]
 
     # Conversiones
     dinero_stock_bs = dinero_stock_usd * tasa
@@ -92,7 +110,8 @@ def dashboard(request):
     ganancia_bs = ganancia_bs.quantize(q)
 
     context = {
-        "productos": productos,
+        "top_deudas": top_deudas,
+        "top_inmovilizado": top_inmovilizado,
         "total_productos": total_productos,
         "total_proveedores": total_proveedores,
         "dinero_stock_usd": dinero_stock_usd,
@@ -116,7 +135,8 @@ def inventario(request):
     q = (request.GET.get("q") or "").strip()
     proveedor_id = (request.GET.get("proveedor") or "").strip()
     tipo_id = (request.GET.get("tipo") or "").strip()
-    solo_stock = request.GET.get("solo_stock") == "on"
+    # Sprint 4: por defecto solo con stock (práctico). El form envía off/on explícito.
+    solo_stock = request.GET.get("solo_stock", "on") == "on"
 
     productos = Producto.objects.select_related("proveedor", "tipo").order_by("nombre")
     if q:

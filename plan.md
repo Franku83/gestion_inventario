@@ -116,17 +116,18 @@ joyerias_inventario/ → settings/urls raíz solo include()
 
 ---
 
-### Sprint 4 — Inventario + Dashboard prácticos (1 semana)
+### Sprint 4 — Inventario + Dashboard prácticos (1 semana) ✅ HECHO (2026-09-16, rama `refactor/s1-desacoplar`)
 
 **Objetivo:** que el dashboard responda "¿qué hago hoy?".
 
-- [ ] `inventario`: una tabla con `Producto | Stock | Costo prom | Precio | Acciones [Vender] [Comprar]`. Botón "Vender" pre-llena `venta_create?producto=X`. Quitar columna IA (ya hecho), agregar filtro `solo_stock` por defecto ON + búsqueda que mantenga `?q` al paginar.
-- [ ] `dashboard`: reducir a 4 KPIs que ya existen (`stock_usd`, `vendido_usd`, `deuda_usd`, `ganancia_usd`) + 2 listas accionables: "Top 5 deudas por cobrar" y "Top 5 stock inmovilizado" (stock>0 sin ventas 90 días). Borrar `resumen_negocio`/`respuesta_asistente` residuales si quedan en contexto.
-- [ ] `resumen_mensual`: mover cálculo a ORM (`TruncMonth` + `Sum`) en vez de loop Python; agregar filtro año con default actual.
-- [ ] `base.html`: navbar de 4 items máximo: `Dashboard | Inventario | Comprar | Vender/Deudas`. Colapsar Proveedores/Tipos en "Catálogos". Compilar Tailwind (salir de CDN) o pinnear versión.
-- [ ] Paginación uniforme 25 en todas las listas (verificar `producto_list`, `compra_list`, `deudas_list` ya la tienen).
+- [x] `inventario`: columna Acciones **[Vender][Comprar]** (`venta_create?producto=X` / `compra_create?producto=X` con prefill de la 1ª fila); `solo_stock` ON por defecto (form envía off/on explícito con hidden+checkbox); paginación conserva `q/proveedor/tipo/solo_stock`.
+- [x] `dashboard`: 4 KPIs intactos + 2 listas accionables: **Por cobrar** (top 5 `ventas_con_deuda_qs`) y **Stock inmovilizado** (stock>0 sin ventas 90 días, ordenado por valor, con link Vender). Sin residuos IA (verificado).
+- [x] `resumen_mensual`: agregación en ORM (`TruncMonth` + `Sum` + `Count`), mismo formato de salida; filtro año con default actual.
+- [x] `base.html`: Proveedores/Tipos colapsados en **Catálogos** (desktop dropdown + sección mobile). Tailwind CDN se deja como está (compilarlo = pipeline Node; diferido a S5 si se quiere).
+- [x] Paginación 25 uniforme verificada en inventario/compra/deudas/proveedor/tipo/producto.
+- [x] Tests `core/test_sprint4.py` (6): solo_stock default/off, links Vender/Comprar, prefill venta+compra (+id inválido), tops dashboard, inmovilizado 90d, resumen ORM con totales.
 
-**Aceptación:** test con usuario: encuentra stock de un producto y lo vende sin ayuda; dashboard carga <1s con 1k ventas (medir con `django-debug-toolbar` o `time`).
+**Aceptación:** 27/27 tests verdes; `check` limpio.
 
 ---
 

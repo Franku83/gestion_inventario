@@ -98,44 +98,23 @@
                 </div>
               </div>
 
-              <!-- Proveedores -->
+              <!-- Catálogos (Sprint 4: Proveedores + Tipos colapsados) -->
               <div class="relative">
                 <button type="button"
                         class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
-                        data-menu="menu-proveedores">
-                  Proveedores
+                        data-menu="menu-catalogos">
+                  Catálogos
                   <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
                   </svg>
                 </button>
-                <div id="menu-proveedores"
+                <div id="menu-catalogos"
                      class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
                   <a href="{% url 'proveedor_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
-                    Listar
+                    Proveedores
                   </a>
-                  <a href="{% url 'proveedor_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
-                    Crear
-                  </a>
-                </div>
-              </div>
-
-              <!-- Tipos -->
-              <div class="relative">
-                <button type="button"
-                        class="nav-dd-btn px-3 py-2 rounded-xl text-sm font-medium hover:bg-slate-100 inline-flex items-center gap-2"
-                        data-menu="menu-tipos">
-                  Tipos
-                  <svg class="h-4 w-4 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/>
-                  </svg>
-                </button>
-                <div id="menu-tipos"
-                     class="nav-dd hidden absolute left-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white shadow-soft p-2">
                   <a href="{% url 'tipo_list' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
-                    Listar
-                  </a>
-                  <a href="{% url 'tipo_create' %}" class="block rounded-xl px-3 py-2 text-sm hover:bg-slate-50">
-                    Crear
+                    Tipos de joya
                   </a>
                 </div>
               </div>
@@ -179,8 +158,9 @@
               <a href="{% url 'venta_create' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Registrar venta</a>
               <a href="{% url 'deudas_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Deudas</a>
               <a href="{% url 'resumen_mensual' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Resumen mensual</a>
+              <p class="px-3 pt-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Catálogos</p>
               <a href="{% url 'proveedor_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Proveedores</a>
-              <a href="{% url 'tipo_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Tipos</a>
+              <a href="{% url 'tipo_list' %}" class="rounded-2xl px-3 py-2 text-sm font-medium hover:bg-slate-50">Tipos de joya</a>
             </div>
           </div>
         </div>

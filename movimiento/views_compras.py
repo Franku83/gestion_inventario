@@ -52,7 +52,11 @@ def compra_create(request):
                 messages.warning(request, "No se registró ninguna compra.")
             return redirect("inventario")
     else:
-        formset = CompraFormSet()
+        initial = None
+        pid = (request.GET.get("producto") or "").strip()
+        if pid.isdigit() and Producto.objects.filter(pk=int(pid), activo=True).exists():
+            initial = [{"producto": int(pid)}]
+        formset = CompraFormSet(initial=initial)
     return render(request, "core/compra_form.html", {"formset": formset})
 
 

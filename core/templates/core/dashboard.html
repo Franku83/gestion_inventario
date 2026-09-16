@@ -36,40 +36,82 @@
     </div>
   </div>
 
-  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm mt-6">
-    <div class="p-5 flex items-center justify-between flex-wrap gap-2">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-900">Productos recientes</h2>
-        <p class="text-sm text-slate-500">
-          Total productos: <span class="font-semibold text-slate-700">{{ total_productos }}</span>
-          · Total proveedores: <span class="font-semibold text-slate-700">{{ total_proveedores }}</span>
-        </p>
+  <p class="text-sm text-slate-500 mt-6">
+    Total productos: <span class="font-semibold text-slate-700">{{ total_productos }}</span>
+    · Total proveedores: <span class="font-semibold text-slate-700">{{ total_proveedores }}</span>
+  </p>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-5 flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Por cobrar</h2>
+          <p class="text-sm text-slate-500">Mayores deudas pendientes.</p>
+        </div>
+        <a href="{% url 'deudas_list' %}" class="text-sm font-semibold text-slate-700 hover:underline">Ver todas →</a>
+      </div>
+      <div class="overflow-x-auto border-t border-slate-200">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="text-left font-semibold px-4 py-3">Cliente</th>
+              <th class="text-right font-semibold px-4 py-3">Debe</th>
+              <th class="text-right font-semibold px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for v in top_deudas %}
+            <tr class="hover:bg-slate-50/60">
+              <td class="px-4 py-3 text-slate-900 font-medium">{{ v.cliente|default:"(sin nombre)" }}</td>
+              <td class="px-4 py-3 text-right font-semibold text-amber-700">${{ v.deuda_calc|floatformat:2 }}</td>
+              <td class="px-4 py-3 text-right">
+                <a href="{% url 'venta_detalle' v.id %}" class="text-xs font-semibold text-slate-700 hover:underline">Ver</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="px-4 py-8 text-center text-slate-500">Sin deudas pendientes. 🎉</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <div class="overflow-x-auto border-t border-slate-200">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-50 text-slate-600">
-          <tr>
-            <th class="text-left font-semibold px-4 py-3">Producto</th>
-            <th class="text-left font-semibold px-4 py-3">Proveedor</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {% for p in productos %}
-          <tr class="hover:bg-slate-50/60">
-            <td class="px-4 py-3 text-slate-900 font-medium">{{ p.nombre }}</td>
-            <td class="px-4 py-3 text-slate-700">{{ p.proveedor.nombre }}</td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="2" class="px-4 py-8 text-center text-slate-500">
-              No hay productos todavía.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-5 flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">Stock inmovilizado</h2>
+          <p class="text-sm text-slate-500">Con stock y sin ventas en 90 días.</p>
+        </div>
+        <a href="{% url 'inventario' %}" class="text-sm font-semibold text-slate-700 hover:underline">Ver inventario →</a>
+      </div>
+      <div class="overflow-x-auto border-t border-slate-200">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600">
+            <tr>
+              <th class="text-left font-semibold px-4 py-3">Producto</th>
+              <th class="text-right font-semibold px-4 py-3">Stock × valor</th>
+              <th class="text-right font-semibold px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for r in top_inmovilizado %}
+            <tr class="hover:bg-slate-50/60">
+              <td class="px-4 py-3 text-slate-900 font-medium">{{ r.producto.nombre }}</td>
+              <td class="px-4 py-3 text-right text-slate-700">{{ r.stock }} × ${{ r.valor|floatformat:2 }}</td>
+              <td class="px-4 py-3 text-right">
+                <a href="{% url 'venta_create' %}?producto={{ r.producto.id }}" class="text-xs font-semibold text-slate-700 hover:underline">Vender</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="px-4 py-8 text-center text-slate-500">Todo el stock rota bien. 🎉</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

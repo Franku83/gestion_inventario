@@ -1,14 +1,12 @@
 import uuid
-from collections import defaultdict
 from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import F, Sum, Value
 from django.db.models.functions import Coalesce
-from django.db.models import Value
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,6 +15,14 @@ from movimiento.forms import PagoVentaForm, VentaEditForm, VentaFormSet
 from movimiento.models import PagoVenta, Venta
 from movimiento.services import get_deuda, get_stock_map, validar_stock_lote, ventas_con_deuda_qs
 from producto.models import Producto
+
+
+def _producto_prefill(request):
+    """?producto=<id> → initial para la primera fila del formset (Sprint 4)."""
+    pid = (request.GET.get("producto") or "").strip()
+    if pid.isdigit() and Producto.objects.filter(pk=int(pid), activo=True).exists():
+        return [{"producto": int(pid)}]
+    return None
 
 
 def _safe_next(request, default_name="venta_detalle", **kwargs):
@@ -109,7 +115,7 @@ def venta_create(request):
         elif pago_inicial < 0:
             formset._non_form_errors = formset.error_class(["Pago inicial inválido."])
     else:
-        formset = VentaFormSet()
+        formset = VentaFormSet(initial=_producto_prefill(request))
 
     idempotency_token = str(uuid.uuid4())
     productos = Producto.objects.filter(activo=True)
@@ -217,32 +223,43 @@ def pago_delete(request, pk):
 
 @login_required
 def resumen_mensual(request):
+    """Sprint 4: agregación en ORM (TruncMonth + Sum), mismo formato de salida."""
+    from django.db.models import Count
+    from django.db.models.functions import TruncMonth
+
     anio_actual = timezone.now().year
     try:
         anio = int(request.GET.get("anio", anio_actual))
     except (TypeError, ValueError):
         anio = anio_actual
 
-    ventas = Venta.objects.filter(anulada=False, fecha__year=anio).select_related("producto")
-    meses_data = defaultdict(lambda: {"num_ventas": 0, "total_vendido": Decimal("0"), "total_costo": Decimal("0")})
-    for v in ventas:
-        mes = v.fecha.month
-        meses_data[mes]["num_ventas"] += 1
-        meses_data[mes]["total_vendido"] += (v.precio_unitario or Decimal("0")) * (v.cantidad or 0)
-        meses_data[mes]["total_costo"] += (v.producto.costo_unitario or Decimal("0")) * (v.cantidad or 0)
+    filas = (
+        Venta.objects.filter(anulada=False, fecha__year=anio)
+        .annotate(mes=TruncMonth("fecha"))
+        .values("mes")
+        .annotate(
+            num_ventas=Count("id"),
+            total_vendido=Sum(F("precio_unitario") * F("cantidad"), default=Decimal("0")),
+            total_costo=Sum(
+                Coalesce(F("producto__costo_unitario"), Value(Decimal("0.00"))) * F("cantidad"),
+                default=Decimal("0"),
+            ),
+        )
+        .order_by("mes")
+    )
 
     nombres_mes = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
     resumen = []
-    for mes in sorted(meses_data.keys()):
-        d = meses_data[mes]
-        total_vendido = d["total_vendido"]
-        total_costo = d["total_costo"]
+    for f in filas:
+        total_vendido = f["total_vendido"] or Decimal("0")
+        total_costo = f["total_costo"] or Decimal("0")
         ganancia = total_vendido - total_costo
         margen = float(ganancia / total_vendido * 100) if total_vendido > 0 else 0.0
+        mes = f["mes"].month
         resumen.append({
             "mes": mes,
             "mes_nombre": nombres_mes[mes],
-            "num_ventas": d["num_ventas"],
+            "num_ventas": f["num_ventas"],
             "total_vendido": float(total_vendido),
             "total_costo": float(total_costo),
             "ganancia": float(ganancia),
