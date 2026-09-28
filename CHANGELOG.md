@@ -1,5 +1,12 @@
 # Changelog
 
+## Sin versión — desactivar productos + fixes baja (2026-09-28, `main`)
+
+- La baja con stock 0 era un callejón sin salida: ahora esa página ofrece **Desactivar producto**.
+- Nuevo **desactivar/reactivar** (`producto_desactivar`, `producto_reactivar`): archiva sin borrar historial; inventario los oculta por defecto (opt-in *Incluir desactivados*); `/productos/` revive como pantalla de gestión con estado y acciones, enlazada en Catálogos.
+- Fix: `nota` de baja truncada a 255 (un motivo largo 500eaba solo en Postgres prod).
+- Migración `movimiento/0008` (choice ADJ). Tests 35 → 40.
+
 ## Sin versión — bajas de stock + fechas en inventario (2026-09-28, `main`)
 
 - Nuevo tipo `Movimiento.ADJ` ("Baja / Ajuste"): saca piezas del stock **sin vender** (no toca vendido, ganancia ni deudas). Botón **Baja** en cada fila de inventario + lista **Bajas de stock** en menú Compra, con anulación reversible (devuelve stock). Todo el cálculo de stock (`get_stock_map`, inventario, dashboard, `producto_list`, estadísticas) resta las bajas no anuladas.

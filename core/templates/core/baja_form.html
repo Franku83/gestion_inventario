@@ -16,6 +16,7 @@
         Úsalo para piezas dañadas, pérdidas o devoluciones. Queda en historial y se puede anular.
       </div>
 
+      {% if stock > 0 %}
       <form method="post" class="mt-6 space-y-4">
         {% csrf_token %}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -50,6 +51,30 @@
           </button>
         </div>
       </form>
+      {% else %}
+      <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+        Este producto ya está en <strong>stock 0</strong>: no hay nada que dar de baja.
+        Para sacarlo de la lista, desactívalo (se oculta del inventario pero se conserva el historial).
+      </div>
+      <div class="flex items-center justify-between pt-4">
+        <a href="{% url 'inventario' %}"
+           class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          Volver
+        </a>
+        {% if producto.activo %}
+        <form method="post" action="{% url 'producto_desactivar' producto.id %}?next={% url 'inventario' %}">
+          {% csrf_token %}
+          <button type="submit"
+                  onclick="return confirm('¿Desactivar {{ producto.nombre }}? Desaparecerá del inventario.')"
+                  class="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+            Desactivar producto
+          </button>
+        </form>
+        {% else %}
+        <span class="text-sm font-semibold text-slate-500">Ya está desactivado.</span>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

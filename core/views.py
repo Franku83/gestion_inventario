@@ -142,8 +142,12 @@ def inventario(request):
     tipo_id = (request.GET.get("tipo") or "").strip()
     # Sprint 4: por defecto solo con stock (práctico). El form envía off/on explícito.
     solo_stock = request.GET.get("solo_stock", "on") == "on"
+    # Baja/stock-0: los desactivados se ocultan por defecto (opt-in para verlos).
+    ver_inactivos = request.GET.get("inactivos", "off") == "on"
 
     productos = Producto.objects.select_related("proveedor", "tipo").order_by("nombre")
+    if not ver_inactivos:
+        productos = productos.filter(activo=True)
     if q:
         productos = productos.filter(nombre__icontains=q)
     if proveedor_id:
@@ -201,7 +205,7 @@ def inventario(request):
         "is_paginated": page_obj.has_other_pages(),
         "proveedores": Proveedor.objects.all().order_by("nombre"),
         "tipos": TipoJoya.objects.all().order_by("nombre"),
-        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id, "solo_stock": solo_stock},
+        "filters": {"q": q, "proveedor": proveedor_id, "tipo": tipo_id, "solo_stock": solo_stock, "inactivos": ver_inactivos},
     }
     return render(request, "core/inventario.html", context)
 
@@ -223,8 +227,14 @@ from proveedor.views import (  # noqa: F401,E402
 from tipologia.views import tipo_list, tipo_create, tipo_update, tipo_delete  # noqa: F401,E402
 
 # Productos CRUD → vive en producto/views.py (Sprint 1). Re-export compat.
-# Nota: hoy sin rutas en core/urls (pantalla muerta, solo vía inventario).
-from producto.views import producto_list, producto_create, producto_update, producto_delete  # noqa: F401,E402
+from producto.views import (  # noqa: F401,E402
+    producto_create,
+    producto_delete,
+    producto_desactivar,
+    producto_list,
+    producto_reactivar,
+    producto_update,
+)
 
 
 # Compras (IN) + bajas (ADJ) → vive en movimiento/views_compras.py (Sprint 1-2). Re-export compat.

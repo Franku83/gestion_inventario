@@ -6,5 +6,6 @@ urlpatterns = [
     path("inventario/", views.inventario, name="inventario"),
     path("", include("proveedor.urls")),
     path("", include("tipologia.urls")),
+    path("", include("producto.urls")),
     path("", include("movimiento.urls")),
 ]

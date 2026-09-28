@@ -90,6 +90,15 @@ class AjusteBajaTests(TestCase):
         self.assertTrue(mov.anulada)
         self.assertEqual(get_stock(self.prod.id), 10)
 
+    def test_baja_sin_stock_ofrece_desactivar(self):
+        # stock 0 → la página no muestra el form sino la opción de desactivar
+        Movimiento.objects.filter(producto=self.prod, tipo="IN").update(anulada=True)
+        self.assertEqual(get_stock(self.prod.id), 0)
+        r = self.client.get(reverse("ajuste_create", args=[self.prod.id]))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Desactivar producto")
+        self.assertContains(r, reverse("producto_desactivar", args=[self.prod.id]))
+
     def test_inventario_muestra_fechas_y_boton(self):
         Venta.objects.create(producto=self.prod, cantidad=1, precio_unitario=Decimal("100.00"))
         r = self.client.get(reverse("inventario"))
@@ -103,3 +112,57 @@ class AjusteBajaTests(TestCase):
         self.assertContains(r, reverse("ajuste_create", args=[self.prod.id]))
         # lista de bajas accesible
         self.assertEqual(self.client.get(reverse("ajuste_list")).status_code, 200)
+
+
+class ProductoActivoTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        User.objects.create_superuser(username="admin", password="password123")
+        self.client.login(username="admin", password="password123")
+        prov = Proveedor.objects.create(nombre="Prov D")
+        tipo = TipoJoya.objects.create(nombre="Tipo D")
+        self.prod = Producto.objects.create(
+            nombre="Anillo D", proveedor=prov, tipo=tipo,
+            costo_unitario=Decimal("50.00"), precio_venta_unitario=Decimal("100.00"), activo=True,
+        )
+        Movimiento.objects.create(tipo="IN", producto=self.prod, cantidad=5, precio_unitario=Decimal("50.00"))
+
+    def _nombres_inventario(self, response):
+        page = response.context["productos"]
+        return {p.nombre for p in page}
+
+    def test_desactivar_oculta_de_inventario(self):
+        r = self.client.post(reverse("producto_desactivar", args=[self.prod.id]))
+        self.assertEqual(r.status_code, 302)
+        self.prod.refresh_from_db()
+        self.assertFalse(self.prod.activo)
+        self.assertNotIn("Anillo D", self._nombres_inventario(self.client.get(reverse("inventario"))))
+        # opt-in la vuelve a mostrar con badge + reactivar
+        r = self.client.get(reverse("inventario") + "?inactivos=on&solo_stock=off")
+        self.assertIn("Anillo D", self._nombres_inventario(r))
+        self.assertContains(r, "Desactivado")
+        self.assertContains(r, reverse("producto_reactivar", args=[self.prod.id]))
+
+    def test_reactivar_devuelve_a_inventario(self):
+        self.prod.activo = False
+        self.prod.save()
+        r = self.client.post(reverse("producto_reactivar", args=[self.prod.id]))
+        self.assertEqual(r.status_code, 302)
+        self.prod.refresh_from_db()
+        self.assertTrue(self.prod.activo)
+        self.assertIn("Anillo D", self._nombres_inventario(self.client.get(reverse("inventario"))))
+
+    def test_desactivar_desde_baja_vuelve_a_inventario(self):
+        Movimiento.objects.filter(producto=self.prod, tipo="IN").update(anulada=True)
+        r = self.client.post(
+            reverse("producto_desactivar", args=[self.prod.id]) + "?next=" + reverse("inventario")
+        )
+        self.assertRedirects(r, reverse("inventario"))
+
+    def test_producto_list_muestra_estado_y_acciones(self):
+        self.prod.activo = False
+        self.prod.save()
+        r = self.client.get(reverse("producto_list"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Desactivado")
+        self.assertContains(r, reverse("producto_reactivar", args=[self.prod.id]))

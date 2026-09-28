@@ -5,6 +5,7 @@ from django.db.models import IntegerField, OuterRef, Subquery, Sum, Value
 from django.db.models.deletion import ProtectedError
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect, get_object_or_404
+from django.views.decorators.http import require_POST
 
 from movimiento.models import Movimiento, Venta
 from producto.forms import ProductoForm
@@ -48,6 +49,36 @@ def producto_update(request, pk):
     else:
         form = ProductoForm(instance=producto)
     return render(request, "core/form.html", {"form": form, "title": "Editar producto"})
+
+
+def _safe_next(request, default_name="producto_list"):
+    """Vuelve a ?next= si es URL local segura, si no al default."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get("next") or request.GET.get("next") or ""
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        return redirect(nxt)
+    return redirect(default_name)
+
+
+@login_required
+@require_POST
+def producto_desactivar(request, pk):
+    """Archiva el producto: sale del inventario y de los selectores, sin borrar historial."""
+    producto = get_object_or_404(Producto, pk=pk)
+    producto.activo = False
+    producto.save(update_fields=["activo"])
+    messages.success(request, f"{producto.nombre} desactivado (ya no aparece en inventario).")
+    return _safe_next(request)
+
+
+@login_required
+@require_POST
+def producto_reactivar(request, pk):
+    producto = get_object_or_404(Producto, pk=pk)
+    producto.activo = True
+    producto.save(update_fields=["activo"])
+    messages.success(request, f"{producto.nombre} reactivado.")
+    return _safe_next(request)
 
 
 @login_required
