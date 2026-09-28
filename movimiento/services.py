@@ -4,7 +4,8 @@ DEFINICIÓN ÚNICA DE DEUDA (decidida Sprint 3, vale para bandeja + dashboard):
     deuda = (precio_unitario * cantidad) - SUM(pagos) > 0 AND anulada=False.
 `a_plazos` es solo etiqueta Contado/A plazos, NO filtra la bandeja.
 
-Stock = SUM(Movimiento IN no anulada) - SUM(Venta no anulada).
+Stock = SUM(Movimiento IN no anulada) - SUM(Venta no anulada) - SUM(Movimiento ADJ no anulada).
+Las bajas (ADJ) no cuentan como venta: no tocan vendido/ganancia/deuda.
 """
 from collections import Counter
 from decimal import Decimal
@@ -19,9 +20,11 @@ def get_stock_map(product_ids=None):
     """dict producto_id -> stock disponible (int)."""
     compras_qs = Movimiento.objects.filter(tipo="IN", anulada=False)
     ventas_qs = Venta.objects.filter(anulada=False)
+    bajas_qs = Movimiento.objects.filter(tipo="ADJ", anulada=False)
     if product_ids is not None:
         compras_qs = compras_qs.filter(producto_id__in=product_ids)
         ventas_qs = ventas_qs.filter(producto_id__in=product_ids)
+        bajas_qs = bajas_qs.filter(producto_id__in=product_ids)
     compras_map = {
         r["producto_id"]: int(r["total_in"] or 0)
         for r in compras_qs.values("producto_id").annotate(total_in=Sum("cantidad"))
@@ -30,10 +33,14 @@ def get_stock_map(product_ids=None):
         r["producto_id"]: int(r["total_out"] or 0)
         for r in ventas_qs.values("producto_id").annotate(total_out=Sum("cantidad"))
     }
-    all_ids = set(compras_map) | set(ventas_map)
+    bajas_map = {
+        r["producto_id"]: int(r["total_adj"] or 0)
+        for r in bajas_qs.values("producto_id").annotate(total_adj=Sum("cantidad"))
+    }
+    all_ids = set(compras_map) | set(ventas_map) | set(bajas_map)
     if product_ids is not None:
         all_ids |= set(product_ids)
-    return {pid: compras_map.get(pid, 0) - ventas_map.get(pid, 0) for pid in all_ids}
+    return {pid: compras_map.get(pid, 0) - ventas_map.get(pid, 0) - bajas_map.get(pid, 0) for pid in all_ids}
 
 
 def get_stock(producto_id):

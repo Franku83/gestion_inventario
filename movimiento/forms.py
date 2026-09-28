@@ -45,6 +45,35 @@ class CompraForm(forms.ModelForm):
 CompraEditForm = CompraForm  # compat Sprint 1
 
 
+class AjusteBajaForm(forms.Form):
+    """Da de baja stock sin vender (pieza dañada, pérdida, devolución). No toca vendido/ganancia."""
+
+    cantidad = forms.IntegerField(min_value=1, label="Cantidad a dar de baja")
+    motivo = forms.CharField(
+        max_length=255, label="Motivo",
+        help_text="Ej: pieza dañada, pérdida, devolución a proveedor",
+        widget=forms.TextInput(attrs={"placeholder": "Ej: pieza dañada"}),
+    )
+
+    def __init__(self, *args, producto=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.producto = producto
+        _bootstrapify(self)
+        if producto is not None:
+            stock = get_stock_map([producto.id]).get(producto.id, 0)
+            self.fields["cantidad"].widget.attrs["max"] = stock
+            self.fields["cantidad"].help_text = f"Stock disponible: {stock}"
+
+    def clean(self):
+        cleaned = super().clean()
+        cantidad = cleaned.get("cantidad")
+        if self.producto is not None and cantidad:
+            stock = get_stock_map([self.producto.id]).get(self.producto.id, 0)
+            if cantidad > stock:
+                self.add_error("cantidad", f"Solo hay {stock} en stock.")
+        return cleaned
+
+
 # Sprint 3: VentaForm (single) eliminado — el flujo único es el formset
 # (ItemVentaForm + pago_inicial a nivel de página, solo válido con 1 fila).
 class VentaEditForm(forms.ModelForm):

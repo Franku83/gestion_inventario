@@ -1,5 +1,11 @@
 # Changelog
 
+## Sin versión — bajas de stock + fechas en inventario (2026-09-28, `main`)
+
+- Nuevo tipo `Movimiento.ADJ` ("Baja / Ajuste"): saca piezas del stock **sin vender** (no toca vendido, ganancia ni deudas). Botón **Baja** en cada fila de inventario + lista **Bajas de stock** en menú Compra, con anulación reversible (devuelve stock). Todo el cálculo de stock (`get_stock_map`, inventario, dashboard, `producto_list`, estadísticas) resta las bajas no anuladas.
+- Inventario muestra **Últ. ingreso** y **Últ. venta** por producto (útil para decidir qué limpiar).
+- Tests 27 → 33 (`movimiento/test_ajustes.py`, 6 nuevos).
+
 ## v2.0-refactor (2026-09-16) — rama `refactor/s1-desacoplar`
 
 Refactor completo sin reescribir: el sistema hace lo mismo, más simple y por dominio.

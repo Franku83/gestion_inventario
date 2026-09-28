@@ -7,6 +7,7 @@ class Movimiento(models.Model):
     class Tipo(models.TextChoices):
         ENTRADA = "IN", "Entrada (Compra)"
         SALIDA = "OUT", "Salida (No usar)"  # lo dejamos por compatibilidad
+        AJUSTE = "ADJ", "Baja / Ajuste de inventario"
 
     tipo = models.CharField(max_length=3, choices=Tipo.choices, default=Tipo.ENTRADA)
 

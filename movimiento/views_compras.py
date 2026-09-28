@@ -7,8 +7,9 @@ from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 
-from movimiento.forms import CompraForm, CompraFormSet
+from movimiento.forms import AjusteBajaForm, CompraForm, CompraFormSet
 from movimiento.models import Movimiento
+from movimiento.services import get_stock_map
 from producto.models import Producto
 
 
@@ -93,3 +94,53 @@ def compra_anular(request, pk):
     compra.save(update_fields=["anulada"])
     messages.success(request, "Compra anulada (no se eliminó).")
     return redirect("compra_list")
+
+
+@login_required
+@transaction.atomic
+def ajuste_create(request, pk):
+    """Baja de stock sin vender. Crea Movimiento ADJ (reversible vía anular)."""
+    producto = get_object_or_404(Producto.objects.select_related("proveedor", "tipo"), pk=pk)
+    stock = get_stock_map([producto.id]).get(producto.id, 0)
+    if request.method == "POST":
+        form = AjusteBajaForm(request.POST, producto=producto)
+        if form.is_valid():
+            stock_now = get_stock_map([producto.id]).get(producto.id, 0)
+            cantidad = form.cleaned_data["cantidad"]
+            if cantidad > stock_now:
+                form.add_error("cantidad", f"Solo hay {stock_now} en stock.")
+            else:
+                Movimiento.objects.create(
+                    tipo="ADJ",
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=Decimal("0.00"),
+                    nota=f"BAJA: {form.cleaned_data['motivo']}",
+                )
+                messages.success(request, f"Baja registrada: {cantidad} x {producto.nombre}.")
+                return redirect("inventario")
+    else:
+        form = AjusteBajaForm(producto=producto)
+    return render(request, "core/baja_form.html", {"form": form, "producto": producto, "stock": stock})
+
+
+@login_required
+def ajuste_list(request):
+    ajustes = (
+        Movimiento.objects.filter(tipo="ADJ")
+        .select_related("producto", "producto__proveedor")
+        .order_by("-fecha")
+    )
+    paginator = Paginator(ajustes, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "core/ajuste_list.html", {"ajustes": page_obj, "page_obj": page_obj, "is_paginated": page_obj.has_other_pages()})
+
+
+@login_required
+@require_POST
+def ajuste_anular(request, pk):
+    ajuste = get_object_or_404(Movimiento, pk=pk, tipo="ADJ")
+    ajuste.anulada = True
+    ajuste.save(update_fields=["anulada"])
+    messages.success(request, "Baja anulada (stock devuelto).")
+    return redirect("ajuste_list")

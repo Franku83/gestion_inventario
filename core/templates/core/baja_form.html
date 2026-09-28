@@ -1,0 +1,56 @@
+{% extends "core/base.html" %}
+{% block title %}Baja de stock{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6">
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm">
+    <div class="p-6">
+      <h1 class="text-xl font-semibold text-slate-900">Baja de stock</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Producto: <span class="font-medium text-slate-700">{{ producto.nombre }}</span>
+        ({{ producto.proveedor.nombre }} · {{ producto.tipo.nombre }})
+        · Stock actual: <span class="font-semibold text-slate-900">{{ stock }}</span>
+      </p>
+      <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        Esto saca piezas del stock <strong>sin registrar venta</strong>: no suma a vendido, ganancia ni deudas.
+        Úsalo para piezas dañadas, pérdidas o devoluciones. Queda en historial y se puede anular.
+      </div>
+
+      <form method="post" class="mt-6 space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Cantidad a dar de baja</label>
+            {{ form.cantidad }}
+            {% if form.cantidad.help_text %}<p class="text-xs text-slate-500 mt-1">{{ form.cantidad.help_text }}</p>{% endif %}
+            {% if form.cantidad.errors %}<p class="text-sm text-red-600 mt-1">{{ form.cantidad.errors|striptags }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1">Motivo</label>
+            {{ form.motivo }}
+            {% if form.motivo.errors %}<p class="text-sm text-red-600 mt-1">{{ form.motivo.errors|striptags }}</p>{% endif %}
+          </div>
+        </div>
+
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="flex items-center justify-between pt-2">
+          <a href="{% url 'inventario' %}"
+             class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Cancelar
+          </a>
+          <button type="submit"
+                  onclick="return confirm('¿Dar de baja esta cantidad? Se restará del stock.')"
+                  class="rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700">
+            Confirmar baja
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

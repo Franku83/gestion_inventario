@@ -1,0 +1,78 @@
+{% extends "core/base.html" %}
+{% block title %}Bajas de stock{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <div class="flex items-end justify-between gap-3 flex-wrap">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-900">Bajas de stock</h1>
+      <p class="text-sm text-slate-500">Salidas que no fueron venta. Se pueden anular para devolver el stock.</p>
+    </div>
+    <a href="{% url 'inventario' %}"
+       class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+      Volver a inventario
+    </a>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-2xl shadow-sm mt-5 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-50 text-slate-600">
+          <tr>
+            <th class="text-left font-semibold px-4 py-3">Fecha</th>
+            <th class="text-left font-semibold px-4 py-3">Producto</th>
+            <th class="text-right font-semibold px-4 py-3">Cantidad</th>
+            <th class="text-left font-semibold px-4 py-3">Motivo</th>
+            <th class="text-left font-semibold px-4 py-3">Estado</th>
+            <th class="text-right font-semibold px-4 py-3">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for a in ajustes %}
+          <tr class="hover:bg-slate-50/60">
+            <td class="px-4 py-3 text-slate-700 whitespace-nowrap">{{ a.fecha|date:"Y-m-d H:i" }}</td>
+            <td class="px-4 py-3 text-slate-900 font-medium">{{ a.producto.nombre }}</td>
+            <td class="px-4 py-3 text-right text-slate-700">{{ a.cantidad }}</td>
+            <td class="px-4 py-3 text-slate-600">{{ a.nota|default:"-" }}</td>
+            <td class="px-4 py-3">
+              {% if a.anulada %}
+                <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">Anulada</span>
+              {% else %}
+                <span class="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/10">Aplicada</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex justify-end gap-2">
+                {% if not a.anulada %}
+                <form method="post" action="{% url 'ajuste_anular' a.id %}">
+                  {% csrf_token %}
+                  <button type="submit"
+                          onclick="return confirm('¿Anular esta baja? El stock se devolverá.')"
+                          class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    Anular
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-slate-500">No hay bajas registradas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 text-sm">
+      <span class="text-slate-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} — {{ page_obj.paginator.count }} bajas</span>
+      <div class="flex gap-2">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="rounded-lg border px-3 py-1.5">Anterior</a>{% endif %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="rounded-lg border px-3 py-1.5">Siguiente</a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

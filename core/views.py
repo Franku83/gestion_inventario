@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Sum, F, IntegerField, DecimalField, Value, OuterRef, Subquery
+from django.db.models import Sum, F, IntegerField, DecimalField, Value, OuterRef, Subquery, Max, DateTimeField
 from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import render
 from django.utils import timezone
@@ -39,7 +39,7 @@ def dashboard(request):
     # Sprint 4: listas accionables — top 5 deudas por cobrar
     top_deudas = list(ventas_con_deuda_qs()[:5])
 
-    # Mapas compras/ventas
+    # Mapas compras/ventas/bajas (las bajas restan stock sin contar como venta)
     compras_map = {
         r["producto_id"]: int(r["total_in"] or 0)
         for r in Movimiento.objects.filter(tipo="IN", anulada=False)
@@ -50,11 +50,16 @@ def dashboard(request):
         for r in Venta.objects.filter(anulada=False)
         .values("producto_id").annotate(total_out=Coalesce(Sum("cantidad"), 0))
     }
+    bajas_map = {
+        r["producto_id"]: int(r["total_adj"] or 0)
+        for r in Movimiento.objects.filter(tipo="ADJ", anulada=False)
+        .values("producto_id").annotate(total_adj=Coalesce(Sum("cantidad"), 0))
+    }
 
     # Dinero en stock
     dinero_stock_usd = Decimal("0.00")
     for p in Producto.objects.only("id", "costo_unitario"):
-        stock_qty = compras_map.get(p.id, 0) - ventas_map.get(p.id, 0)
+        stock_qty = compras_map.get(p.id, 0) - ventas_map.get(p.id, 0) - bajas_map.get(p.id, 0)
         if stock_qty < 0:
             stock_qty = 0
         dinero_stock_usd += Decimal(str(p.costo_unitario or 0)) * Decimal(stock_qty)
@@ -86,7 +91,7 @@ def dashboard(request):
     )
     inmovilizado = []
     for p in Producto.objects.select_related("proveedor").only("id", "nombre", "costo_unitario", "proveedor__nombre"):
-        stock_qty = compras_map.get(p.id, 0) - ventas_map.get(p.id, 0)
+        stock_qty = compras_map.get(p.id, 0) - ventas_map.get(p.id, 0) - bajas_map.get(p.id, 0)
         if stock_qty > 0 and p.id not in con_ventas_recientes:
             costo = Decimal(str(p.costo_unitario or 0))
             inmovilizado.append({"producto": p, "stock": stock_qty, "valor": costo * Decimal(stock_qty)})
@@ -158,13 +163,28 @@ def inventario(request):
         producto=OuterRef("pk"), tipo="IN", anulada=False
     ).order_by().values("producto").annotate(total=Sum(F("cantidad") * F("precio_unitario"))).values("total")
 
+    total_adj_sq = Movimiento.objects.filter(
+        producto=OuterRef("pk"), tipo="ADJ", anulada=False
+    ).order_by().values("producto").annotate(total=Sum("cantidad")).values("total")
+
+    ultimo_ingreso_sq = Movimiento.objects.filter(
+        producto=OuterRef("pk"), tipo="IN", anulada=False
+    ).order_by().values("producto").annotate(ult=Max("fecha")).values("ult")
+
+    ultima_venta_sq = Venta.objects.filter(
+        producto=OuterRef("pk"), anulada=False
+    ).order_by().values("producto").annotate(ult=Max("fecha")).values("ult")
+
     total_in_val = Coalesce(Subquery(total_in_sq), Value(0), output_field=IntegerField())
     total_out_val = Coalesce(Subquery(total_out_sq), Value(0), output_field=IntegerField())
+    total_adj_val = Coalesce(Subquery(total_adj_sq), Value(0), output_field=IntegerField())
     total_cost_val = Coalesce(Subquery(total_cost_sq), Value(0), output_field=DecimalField(max_digits=18, decimal_places=2))
 
     productos = productos.annotate(
-        stock=total_in_val - total_out_val,
+        stock=total_in_val - total_out_val - total_adj_val,
         costo_prom=total_cost_val / NullIf(total_in_val, 0),
+        ultimo_ingreso=Subquery(ultimo_ingreso_sq, output_field=DateTimeField()),
+        ultima_venta=Subquery(ultima_venta_sq, output_field=DateTimeField()),
     )
 
     if solo_stock:
@@ -207,9 +227,12 @@ from tipologia.views import tipo_list, tipo_create, tipo_update, tipo_delete  # 
 from producto.views import producto_list, producto_create, producto_update, producto_delete  # noqa: F401,E402
 
 
-# Compras (IN) → vive en movimiento/views_compras.py (Sprint 1-2). Re-export compat.
+# Compras (IN) + bajas (ADJ) → vive en movimiento/views_compras.py (Sprint 1-2). Re-export compat.
 # Sprint 2: compra_multiple y compra_delete eliminados (flujo único + solo anular).
 from movimiento.views_compras import (  # noqa: F401,E402
+    ajuste_anular,
+    ajuste_create,
+    ajuste_list,
     compra_anular,
     compra_create,
     compra_list,

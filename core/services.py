@@ -16,11 +16,13 @@ def obtener_estadisticas_inventario():
     total_productos = Producto.objects.count()
     compras = Movimiento.objects.filter(tipo="IN", anulada=False).values("producto_id").annotate(total_in=Sum("cantidad"))
     ventas = Venta.objects.filter(anulada=False).values("producto_id").annotate(total_out=Sum("cantidad"))
+    bajas = Movimiento.objects.filter(tipo="ADJ", anulada=False).values("producto_id").annotate(total_adj=Sum("cantidad"))
     compras_map = {c["producto_id"]: c["total_in"] for c in compras}
     ventas_map = {v["producto_id"]: v["total_out"] for v in ventas}
+    bajas_map = {b["producto_id"]: b["total_adj"] for b in bajas}
     valor_total = Decimal("0.00")
     for p in Producto.objects.only("id", "costo_unitario"):
-        qty = (compras_map.get(p.id, 0) or 0) - (ventas_map.get(p.id, 0) or 0)
+        qty = (compras_map.get(p.id, 0) or 0) - (ventas_map.get(p.id, 0) or 0) - (bajas_map.get(p.id, 0) or 0)
         if qty > 0:
             valor_total += Decimal(qty) * (p.costo_unitario or Decimal("0.00"))
     proveedor_top = Proveedor.objects.annotate(num_prod=Count("productos")).order_by("-num_prod").first()

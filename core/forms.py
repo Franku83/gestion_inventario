@@ -24,6 +24,7 @@ from producto.forms import ProductoForm  # noqa: F401,E402
 # Sprint 1-3: fuente real en movimiento/forms.py. Re-export compat.
 # Sprint 3: VentaForm (single) eliminado; VentaLoteFormSet es alias. Flujo único = VentaFormSet.
 from movimiento.forms import (  # noqa: F401,E402
+    AjusteBajaForm,
     CompraEditForm,
     CompraForm,
     CompraFormSet,

@@ -1,5 +1,8 @@
 """Compat: la lógica vive en views_compras.py / views_ventas.py (Sprint 1-2)."""
 from movimiento.views_compras import (  # noqa: F401
+    ajuste_anular,
+    ajuste_create,
+    ajuste_list,
     compra_anular,
     compra_create,
     compra_list,
