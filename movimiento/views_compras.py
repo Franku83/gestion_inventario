@@ -110,12 +110,14 @@ def ajuste_create(request, pk):
             if cantidad > stock_now:
                 form.add_error("cantidad", f"Solo hay {stock_now} en stock.")
             else:
+                # nota tiene max 255 (Postgres lo exige; SQLite no): truncar para no 500ear en prod
+                nota = f"BAJA: {form.cleaned_data['motivo']}"[:255]
                 Movimiento.objects.create(
                     tipo="ADJ",
                     producto=producto,
                     cantidad=cantidad,
                     precio_unitario=Decimal("0.00"),
-                    nota=f"BAJA: {form.cleaned_data['motivo']}",
+                    nota=nota,
                 )
                 messages.success(request, f"Baja registrada: {cantidad} x {producto.nombre}.")
                 return redirect("inventario")

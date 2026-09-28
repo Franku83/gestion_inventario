@@ -45,6 +45,25 @@ class AjusteBajaTests(TestCase):
         # dinero en stock sí baja: 6 x 50 = 300
         self.assertEqual(r.context["dinero_stock_usd"], Decimal("300.00"))
 
+    def test_baja_motivo_largo_no_rompe_nota(self):
+        # nota tiene max 255 (Postgres lo exige): motivo de 255 chars no debe fallar
+        r = self.client.post(reverse("ajuste_create", args=[self.prod.id]), data={
+            "cantidad": 2, "motivo": "x" * 255,
+        })
+        self.assertEqual(r.status_code, 302)
+        mov = Movimiento.objects.get(producto=self.prod, tipo="ADJ")
+        self.assertLessEqual(len(mov.nota), 255)
+        self.assertEqual(get_stock(self.prod.id), 8)
+
+    def test_baja_total_oculta_producto_del_inventario(self):
+        self.client.post(reverse("ajuste_create", args=[self.prod.id]), data={
+            "cantidad": 10, "motivo": "limpieza",
+        })
+        self.assertEqual(get_stock(self.prod.id), 0)
+        r = self.client.get(reverse("inventario"))
+        # con solo_stock=on (default) la tabla queda vacía (el nombre solo sale en el mensaje flash)
+        self.assertContains(r, "No hay productos en inventario")
+
     def test_baja_mayor_que_stock_falla(self):
         r = self.client.post(reverse("ajuste_create", args=[self.prod.id]), data={
             "cantidad": 99, "motivo": "error",
